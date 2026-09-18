@@ -1,5 +1,13 @@
 # Changelog
 
+## 2025-09-19 — 交付上线
+
+### Added
+
+- 创建 GitHub 仓库并推送 `main`：<https://github.com/yymmm9/shader-forge>。
+- Vercel 项目 `shader-forge` 连接 GitHub 仓库并完成首个生产部署：<https://shader-forge.vercel.app>（HTTP 200，页面标题 Shader Forge）。
+- `.gitignore` 增加 `.claude`（环境符号链接目录，不入库）。
+
 ## 2025-09-19 — shader-forge first delivery
 
 ### Added
