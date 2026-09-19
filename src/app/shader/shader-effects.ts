@@ -131,9 +131,9 @@ vec2 rippleUv(vec2 uv) {
 vec2 glitchUv(vec2 uv, out float rgbShift) {
   float row = floor(uv.y * u_scale * 60.0);
   float seed = hash21(vec2(row, floor(u_phase * 8.0)));
-  float active = step(1.0 - u_amount * 0.6, seed);
-  float offset = (seed - 0.5) * u_amount * 0.2 * active;
-  rgbShift = u_amount * 0.02 * active;
+  float rowActive = step(1.0 - u_amount * 0.6, seed);
+  float offset = (seed - 0.5) * u_amount * 0.2 * rowActive;
+  rgbShift = u_amount * 0.02 * rowActive;
   return uv + vec2(offset, 0.0);
 }
 

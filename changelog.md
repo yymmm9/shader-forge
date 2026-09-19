@@ -1,5 +1,11 @@
 # Changelog
 
+## 2025-09-19 — 修复线上黑屏
+
+### Fixed
+
+- `SHADER_FRAGMENT_SOURCE` 中 `glitchUv` 使用 GLSL ES 3.00 保留字 `active` 作为变量名，导致 fragment shader 编译失败、`createShaderRenderer` 返回 null、画布永不渲染（线上黑屏）。改名 `rowActive`，浏览器内实测编译/链接通过。
+
 ## 2025-09-19 — 交付上线
 
 ### Added
