@@ -101,8 +101,18 @@ export const shaderControlSections: readonly ToolcraftControlSectionSchema[] =
           options: [
             { label: "Flow", value: "flow" },
             { label: "Ripple", value: "ripple" },
-            { label: "Halftone", value: "halftone" },
+            { label: "Wave", value: "wave" },
+            { label: "Swirl", value: "swirl" },
+            { label: "Kaleido", value: "kaleido" },
             { label: "Glitch", value: "glitch" },
+            { label: "Chromatic", value: "chromatic" },
+            { label: "Pixelate", value: "pixelate" },
+            { label: "Halftone", value: "halftone" },
+            { label: "Dither", value: "dither" },
+            { label: "Posterize", value: "posterize" },
+            { label: "Edge", value: "edge" },
+            { label: "Chrome", value: "chrome" },
+            { label: "Grain", value: "grain" },
           ],
           orderRole: "primary",
           performanceReason:
@@ -150,12 +160,27 @@ export const shaderControlSections: readonly ToolcraftControlSectionSchema[] =
           target: "effect.phase",
           type: "slider",
         },
+        speed: {
+          applicability: { mode: "always" },
+          defaultValue: 0.5,
+          description:
+            "Continuous motion rate of the effect; 0 freezes the frame.",
+          label: "Speed",
+          max: 2,
+          min: 0,
+          performanceReason:
+            "Scales the ambient animation clock advance; no pass recompute.",
+          performanceRole: "responsiveness",
+          step: 0.05,
+          target: "effect.speed",
+          type: "slider",
+        },
       },
       id: "effect",
       layoutGroups: [
         {
           columns: 2,
-          controls: ["amount", "scale", "phase"],
+          controls: ["amount", "scale", "phase", "speed"],
           layout: "inline",
         },
       ],

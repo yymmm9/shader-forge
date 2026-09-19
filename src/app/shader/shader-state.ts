@@ -1,5 +1,6 @@
 import {
   getToolcraftFiniteArtboardRect,
+  getToolcraftTimelineLoopProgress,
   type ToolcraftFontPickerValue,
   type ToolcraftImageAsset,
   type ToolcraftSceneRect,
@@ -29,6 +30,7 @@ export type ShaderParams = Readonly<{
   effect: ShaderEffectPreset;
   phase: number;
   scale: number;
+  speed: number;
 }>;
 
 export const SHADER_SOURCE_IMAGE_TARGET = "source.image";
@@ -69,6 +71,7 @@ export function getShaderParams(state: ReadonlyToolcraftState): ShaderParams {
       : "flow",
     phase: asNumber(state.values["effect.phase"], 0),
     scale: asNumber(state.values["effect.scale"], 2),
+    speed: Math.min(2, Math.max(0, asNumber(state.values["effect.speed"], 0.5))),
   };
 }
 
@@ -113,4 +116,16 @@ export function getShaderSceneRect(
   state: ReadonlyToolcraftState,
 ): ToolcraftSceneRect {
   return getToolcraftFiniteArtboardRect(state.canvas.size);
+}
+
+export function getShaderLoopTime(
+  timeline: ReadonlyToolcraftState["timeline"],
+  speed: number,
+): number {
+  if (speed <= 0) return 0;
+  const cycles = Math.max(
+    1,
+    Math.round(speed * timeline.durationSeconds),
+  );
+  return getToolcraftTimelineLoopProgress(timeline) * cycles;
 }

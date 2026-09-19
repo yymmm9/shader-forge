@@ -39,7 +39,11 @@ describe("appSchema", () => {
       type: "text",
     });
     expect(appSchema.panels.layers).toBeUndefined();
-    expect(appSchema.panels.timeline).toBeUndefined();
+    expect(appSchema.panels.timeline).toMatchObject({
+      defaultDurationSeconds: 8,
+      enabled: true,
+      mode: "playback",
+    });
     expect(appSchema.toolbar).toEqual({
       history: true,
       radar: true,
@@ -49,6 +53,7 @@ describe("appSchema", () => {
     expect(appSchema.assembly.components).toEqual([
       "canvas",
       "controlsPanel",
+      "timelinePanel",
       "toolbar",
     ]);
     expect(appSchema.assembly.capabilities).toEqual(
@@ -64,7 +69,7 @@ describe("appSchema", () => {
         "toolbar.zoom",
       ]),
     );
-    expect(appSchema.assembly.capabilities).not.toContain(
+    expect(appSchema.assembly.capabilities).toContain(
       "timeline.playback",
     );
     expect(appSchema.assembly.capabilities).not.toContain(
@@ -83,17 +88,22 @@ describe("appSchema", () => {
         "media.importBatch",
       ]),
     );
-    expect(appSchema.assembly.commands).not.toContain(
+    expect(appSchema.assembly.commands).toContain(
       "timeline.setCurrentTime",
     );
     expect(
       appSchema.modulePlan.capabilities.map(
         ({ capabilityId }) => capabilityId,
       ),
-    ).toEqual(["artifact.image-export", "media.source"]);
+    ).toEqual([
+      "artifact.image-export",
+      "media.source",
+      "timeline.playback",
+    ]);
     expect(appSchema.modulePlan.modules.map(({ id }) => id)).toEqual([
       "image-export",
       "media-source",
+      "timeline",
     ]);
   });
 
@@ -110,11 +120,14 @@ describe("appSchema", () => {
       "effect",
     ]);
     expect(appSchema.panels.layers).toBeUndefined();
-    expect(appSchema.panels.timeline).toBeUndefined();
+    expect(appSchema.panels.timeline).toMatchObject({
+      enabled: true,
+      mode: "playback",
+    });
   });
 
-  it("does not imply timeline behavior before a product needs it", () => {
-    expect(appSchema.assembly.capabilities).not.toContain(
+  it("enables playback timeline without keyframe editing", () => {
+    expect(appSchema.assembly.capabilities).toContain(
       "timeline.playback",
     );
     expect(appSchema.assembly.capabilities).not.toContain(

@@ -6,7 +6,7 @@ import {
   materializeShaderSource,
   resolveShaderSource,
 } from "./shader-source";
-import { getShaderParams } from "./shader-state";
+import { getShaderLoopTime, getShaderParams } from "./shader-state";
 
 export const shaderForgeExportRenderer: ToolcraftProductExportRenderer = {
   baseFileName: "shader-forge",
@@ -42,6 +42,7 @@ export const shaderForgeExportRenderer: ToolcraftProductExportRenderer = {
             scale: params.scale,
             source,
             sourceTransform: transform,
+            time: getShaderLoopTime(state.timeline, params.speed),
           })
         ) {
           throw new Error(

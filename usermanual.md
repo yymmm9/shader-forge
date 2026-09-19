@@ -1,11 +1,12 @@
 # Shader Forge 使用手册
 
-Shader Forge 是一个把文字或图片变成 shader 视觉效果的网页编辑器。你在画布上实时看到效果，调好后一键导出 PNG/JPG 图片。
+Shader Forge 是一个把文字或图片变成动态 shader 视觉效果的网页编辑器。你在画布上实时看到循环动画效果，调好后一键导出 PNG/JPG 图片。
 
 ## 快速开始
 
-1. 打开应用后，画布中央会显示默认文字 "SHADER" 经过 Flow 效果的渲染结果。
-2. 右侧 Controls 面板从上到下分四个区块：Source、Typography、Effect、Setup（含 Background、Image Export）。
+1. 打开应用后，画布中央会显示默认文字 "SHADER" 经过 Flow 效果的循环动画渲染。
+2. 底部 Timeline 面板控制动画播放：Play/Pause、拖拽进度条精确定位、编辑循环时长（默认 8 秒）。
+3. 右侧 Controls 面板从上到下分四个区块：Source、Typography、Effect、Setup（含 Background、Image Export）。
 
 ## Source（来源）
 
@@ -19,12 +20,33 @@ Shader Forge 是一个把文字或图片变成 shader 视觉效果的网页编�
 
 ## Effect（效果）
 
-- **Preset**：选择 fragment shader 效果 —
+- **Preset**：14 种 fragment shader 效果 —
   - `Flow`：流体式 domain-warp 扭曲
   - `Ripple`：涟漪扩散
-  - `Halftone`：半调网点
+  - `Wave`：波浪形变
+  - `Swirl`：旋涡旋转
+  - `Kaleido`：万花筒镜像
   - `Glitch`：通道分离故障风
-- **Amount / Scale / Phase**：效果强度、空间尺度与相位，拖动滑杆实时预览。
+  - `Chromatic`：径向色散呼吸
+  - `Pixelate`：像素化呼吸
+  - `Halftone`：半调网点
+  - `Dither`：Bayer 抖动
+  - `Posterize`：色阶海报化
+  - `Edge`：霓虹边缘描边
+  - `Chrome`：梯度金属色带
+  - `Grain`：动态颗粒噪点
+- **Amount / Scale / Phase**：效果强度、空间尺度与相位偏移，拖动滑杆实时预览。
+- **Speed**：动画速率（每秒钟的循环周期数），0 为静止画面。
+
+## Timeline（时间轴）
+
+底部时间轴面板控制动画播放：
+
+- **Play / Pause**：播放或暂停动画；暂停时画面冻结在当前帧。
+- **Scrub**：拖拽进度条查看任意时刻的确定性画面。
+- **Duration**：编辑循环总时长（默认 8 秒）；修改后动画依然首尾无缝衔接。
+- 动画为前向无缝循环：每个循环内包含整数个效果周期，首帧与末帧完全一致。
+- 导出的图片使用当前时间轴位置对应的画面，所见即所得。
 
 ## Setup（画布与导出）
 

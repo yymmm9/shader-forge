@@ -8,6 +8,7 @@ import {
   useToolcraftPipeline,
   useToolcraftPipelinePass,
   useToolcraftProductSceneFrame,
+  useToolcraftViewportInteractionActive,
 } from "@/toolcraft/runtime/react";
 
 import { createShaderRenderer, type ShaderRenderer } from "./shader-gl";
@@ -22,6 +23,7 @@ import {
   resolveShaderSource,
 } from "./shader-source";
 import {
+  getShaderLoopTime,
   getShaderParams,
   getShaderSourceImageAsset,
   getShaderSourceKind,
@@ -48,8 +50,10 @@ export function ShaderForgeOutput(): React.JSX.Element {
     0,
   );
 
+  const interacting = useToolcraftViewportInteractionActive();
   const sourceAsset = getShaderSourceImageAsset(state);
   const params = React.useMemo(() => getShaderParams(state), [state]);
+  const loopTime = getShaderLoopTime(state.timeline, params.speed);
   const typographyKey = JSON.stringify(
     state.values["text.typography"] ?? null,
   );
@@ -108,6 +112,7 @@ export function ShaderForgeOutput(): React.JSX.Element {
       const canvas = canvasRef.current;
       const renderer = rendererRef.current;
       if (!canvas || !renderer || sceneFrame.kind !== "ready") return;
+      if (interacting) return;
       if (sourcePass.status !== "success") return;
       const rect = canvas.getBoundingClientRect();
       if (rect.width < 1 || rect.height < 1) return;
@@ -121,7 +126,7 @@ export function ShaderForgeOutput(): React.JSX.Element {
       const { source, transform } = await materializeShaderSource(
         sourcePass.result,
       );
-      if (cancelled) return;
+      if (cancelled || interacting) return;
       let rendered = true;
       const render = () => {
         rendered =
@@ -132,6 +137,7 @@ export function ShaderForgeOutput(): React.JSX.Element {
             scale: params.scale,
             source,
             sourceTransform: transform,
+            time: loopTime,
           }) && rendered;
       };
       if (pipeline) {
@@ -156,6 +162,8 @@ export function ShaderForgeOutput(): React.JSX.Element {
     state,
     registryVersion,
     surfaceVersion,
+    interacting,
+    loopTime,
   ]);
 
   return (

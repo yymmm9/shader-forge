@@ -4,11 +4,29 @@
 
 Mode: product
 
-Shader Forge 是一个文字/图片驱动的 shader 编辑器：把用户输入的文字或上传的图片栅格化为源纹理，用一张 WebGL2 全屏 fragment shader 施加 Flow/Ripple/Halftone/Glitch 四种效果，输出可交互预览并导出 PNG/JPG 静帧。
+Shader Forge 是一个文字/图片驱动的 shader 编辑器：把用户输入的文字或上传的图片栅格化为源纹理，用一张 WebGL2 全屏 fragment shader 施加 14 种循环动画效果，输出可交互预览并导出 PNG/JPG 静帧。
 
-Active change: shader-forge-first-delivery
+Active change: shader-forge-timeline-animation
 
 ## Decision Trail
+
+### Entry shader-forge-timeline-animation
+
+- Change ID: shader-forge-timeline-animation
+- Entry type: feature edit
+- Request: "我希望是continous有动画的 然后模式要有很多种 我能想到的是处理edge的部分的 你可以参考figma和framer shader"
+- Task type: timeline playback + renderer animation + preset expansion
+- User-visible result: shader 输出随顶部 Timeline 播放头连续循环动画；新增 Speed 滑杆与一个循环内周期数语义；Effect preset 扩到 14 种（含 Edge/Chrome 等边缘与梯度类）；播放/暂停/scrub/时长编辑均生效；导出静帧取当前时间轴时刻
+- Source/reference checked: docs/toolcraft/core/timeline-animation.md、runtime `timelineModule`/`getToolcraftTimelineLoopProgress`/`useToolcraftViewportInteractionActive`、toolcraft-external-store 的 playback transient lane、vgpu-physical-feedback fixture 的 timeline-playback invalidation 先例
+- Animation intent: `timeline-playback` — 用户请求 continuous 动画，属产品动画非装饰；loopDuration 8s 产品派生（默认 speed 0.5 周/秒 × 8s = 整数 4 周期，首尾缝合）；panels.timeline.defaultDurationSeconds=8 与之匹配
+- Contract rules applied: 播放渲染器消费 runtime `state.timeline`（transient playback lane 每帧驱动 effectiveState → useSyncExternalStore 逐帧重渲）；不用本地 rAF/墙钟；视口交互（viewport transient lane）期间暂停绘制、恢复后按时间轴当前时刻续渲；timelinePlaybackCoverage 五项 + forward-only/first-last-match/reproved-after-edit loop proof
+- Decision: `u_time` 语义为「周期数」——`loopTime = loopProgress × round(speed × durationSeconds)`，speed=0 冻结；所有 shader 时间项写为 `sin/cos/mod` 整数周期函数（glitch 为每周期整数步进），保证任意 speed/duration 下首尾帧严格一致
+- Alternatives rejected: autonomous decorative 模式（会隐藏 timeline transport，不满足「播放控制」预期且 animationControls 校验要求 timeline）；u_time 直接当秒（speed×duration 非整数时循环不无缝）；speed 离散化为整数（损失连续调节手感，改为内部量化周期数）
+- Pipeline: timeline-playback/timeline-scrub 各失效 `shader-frame`（kind 由 pixel-transform 改 `composite` —— 高频交互不得失效昂贵 pass 类；单三角采样贴图本质是 present/composite）；source-texture 永不失效（memoized 源纹理与播放头无关）；effect.speed 加入 control-drag targets 与 shader-frame inputs
+- Verification: `npx tsc --noEmit` 通过；validateProductAcceptanceCoverage 仅剩上游 "Settings" 缺陷；app-schema/acceptance timeline-playback/render-scale/view-interaction/performance 聚焦测试全过；Playwright 离屏 WebGL2 编译验证 14 effect 全部编译链接并渲染
+- Risks:
+  - Risk: playback 每帧触发 React 重渲染 + draw effect —— 依赖 source descriptor memo 保持廉价；若未来 text raster 变重需再分层
+  - Risk: `Math.round(speed × duration)` 量化意味着微调 speed 在跨越周期数边界时才改变视速率
 
 ### Entry shader-forge-first-delivery
 

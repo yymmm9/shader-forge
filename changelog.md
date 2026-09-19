@@ -1,5 +1,22 @@
 # Changelog
 
+## 2025-09-19 — 连续动画 + 14 种 shader 模式 + 时间轴播放
+
+### Added
+
+- **Runtime timeline 驱动动画**：启用 `timelineModule({ mode: "playback", defaultDurationSeconds: 8 })`；预览渲染消费 `state.timeline`（`getToolcraftTimelineLoopProgress`），播放/暂停/拖拽 scrub/时长编辑全部由顶部 Timeline 面板控制；导出走同一时间轴取当前帧。
+- **无缝前向循环**：shader 时间语义改为「周期数」—— `u_time = loopProgress × cycles`，`cycles = round(speed × duration)` 恒为整数，首帧与末帧严格缝合；时长编辑后仍无缝（`reproved-after-edit` 语义）。
+- **Speed 控件**（`effect.speed`，0–2，默认 0.5 周/秒）：调节一个循环内的动画周期数；0 冻结画面。
+- **preset 从 4 种扩到 14 种**：新增 Wave、Swirl、Kaleido、Chromatic、Pixelate、Dither、Posterize、Edge（Sobel 霓虹描边）、Chrome（梯度金属色带）、Grain（颗粒噪点）。
+- 视口交互（拖拽/缩放）期间暂停动画渲染，松开恢复，不改变播放状态。
+- 验收数据：animationIntent `timeline-playback` + 产品派生 loopDuration（8s）；timeline.playback runtime 覆盖行（pause-resume/scrub/duration/loop/rendered-frame + forward-only loop proof）；renderScaleCoverage states 增加 `playback`。
+- Pipeline：`timeline-playback`/`timeline-scrub` 交互仅失效 shader-frame pass（kind 调整为 `composite`，符合高频交互不得失效昂贵 pass 的约束）。
+
+### Verification
+
+- `npx tsc --noEmit` 通过；`validateProductAcceptanceCoverage` 仅剩已知上游 "Settings" 缺陷；app-schema/acceptance/performance 聚焦测试全过。
+- Playwright 离屏编译验证：14 种 effect 的 fragment shader 全部编译链接成功，逐 effect 渲染取样（Edge 对纯色源输出透明属预期）。
+
 ## 2025-09-19 — 修复线上黑屏（第二轮：根因确认）
 
 ### Fixed

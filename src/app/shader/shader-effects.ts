@@ -1,10 +1,34 @@
-export type ShaderEffectPreset = "flow" | "ripple" | "halftone" | "glitch";
+export type ShaderEffectPreset =
+  | "flow"
+  | "ripple"
+  | "wave"
+  | "swirl"
+  | "kaleido"
+  | "glitch"
+  | "chromatic"
+  | "pixelate"
+  | "halftone"
+  | "dither"
+  | "posterize"
+  | "edge"
+  | "chrome"
+  | "grain";
 
 export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "flow",
   "ripple",
-  "halftone",
+  "wave",
+  "swirl",
+  "kaleido",
   "glitch",
+  "chromatic",
+  "pixelate",
+  "halftone",
+  "dither",
+  "posterize",
+  "edge",
+  "chrome",
+  "grain",
 ] as const;
 
 export const SHADER_EFFECT_PRESET_INDEX: Readonly<
@@ -12,9 +36,19 @@ export const SHADER_EFFECT_PRESET_INDEX: Readonly<
 > = {
   flow: 0,
   ripple: 1,
-  halftone: 2,
-  glitch: 3,
-} as const;
+  wave: 2,
+  swirl: 3,
+  kaleido: 4,
+  glitch: 5,
+  chromatic: 6,
+  pixelate: 7,
+  halftone: 8,
+  dither: 9,
+  posterize: 10,
+  edge: 11,
+  chrome: 12,
+  grain: 13,
+};
 
 export const SHADER_VERTEX_SOURCE = `#version 300 es
 in vec2 a_position;
@@ -36,6 +70,7 @@ uniform vec2 u_sourceSize;
 uniform float u_amount;
 uniform float u_scale;
 uniform float u_phase;
+uniform float u_time;
 uniform vec3 u_sourceTransform;
 
 in vec2 v_uv;
@@ -71,16 +106,29 @@ float fbm(vec2 p) {
   return total;
 }
 
+float bayer2(vec2 a) {
+  a = floor(a);
+  return fract(a.x * 0.5 + a.y * a.y * 0.75);
+}
+
+float bayer4(vec2 a) {
+  return bayer2(a * 0.5) * 0.25 + bayer2(a);
+}
+
+float bayer8(vec2 a) {
+  return bayer4(a * 0.5) * 0.25 + bayer2(a);
+}
+
 vec2 coverUv(vec2 uv) {
   float outAspect = u_resolution.x / max(u_resolution.y, 1.0);
   float srcAspect = u_sourceSize.x / max(u_sourceSize.y, 1.0);
-  vec2 scale = vec2(1.0);
+  vec2 fit = vec2(1.0);
   if (srcAspect > outAspect) {
-    scale.x = outAspect / srcAspect;
+    fit.x = outAspect / srcAspect;
   } else {
-    scale.y = srcAspect / outAspect;
+    fit.y = srcAspect / outAspect;
   }
-  vec2 centered = (uv - 0.5) / scale + 0.5;
+  vec2 centered = (uv - 0.5) / fit + 0.5;
   float quarterTurns = u_sourceTransform.x;
   float angle = quarterTurns * TAU * 0.25;
   float c = cos(angle);
@@ -106,50 +154,189 @@ vec4 sampleSource(vec2 uv) {
   return texture(u_source, sourceUv);
 }
 
+float sourceLum(vec2 uv) {
+  vec4 c = sampleSource(uv);
+  return dot(c.rgb, vec3(0.299, 0.587, 0.114));
+}
+
+vec2 aspectUv(vec2 uv) {
+  vec2 p = uv - 0.5;
+  p.x *= u_resolution.x / max(u_resolution.y, 1.0);
+  return p;
+}
+
 vec2 flowUv(vec2 uv) {
   vec2 p = uv * vec2(u_resolution.x / u_resolution.y, 1.0);
-  float t = u_phase * TAU;
+  float a = (u_phase + u_time) * TAU;
+  vec2 orbit = vec2(cos(a), sin(a));
   vec2 warp = vec2(
-    fbm(p * u_scale + vec2(t * 0.35, -t * 0.2)),
-    fbm(p * u_scale + vec2(-t * 0.25, t * 0.3) + 7.7)
+    fbm(p * u_scale + orbit * 1.3),
+    fbm(p * u_scale + vec2(cos(a + 2.4), sin(a + 2.4)) * 1.3 + 7.7)
   );
-  vec2 drift = vec2(cos(t), sin(t)) * 0.15;
-  return uv + (warp - 0.5 + drift) * u_amount * 0.35;
+  return uv + (warp - 0.5 + orbit * 0.15) * u_amount * 0.35;
 }
 
 vec2 rippleUv(vec2 uv) {
-  vec2 centered = uv - 0.5;
-  centered.x *= u_resolution.x / u_resolution.y;
+  vec2 centered = aspectUv(uv);
   float dist = length(centered);
-  float wave = sin(dist * u_scale * 24.0 - u_phase * TAU);
+  float wave = sin(dist * u_scale * 24.0 - (u_phase + u_time) * TAU);
   vec2 dir = dist > 1e-4 ? normalize(centered) : vec2(0.0);
   vec2 offset = dir * wave * u_amount * 0.08;
   offset.x /= max(u_resolution.x / u_resolution.y, 1e-4);
   return uv + offset;
 }
 
-vec2 glitchUv(vec2 uv, out float rgbShift) {
+vec4 waveColor(vec2 uv) {
+  float t = (u_phase + u_time) * TAU * 2.0;
+  vec2 w = uv;
+  w.x += sin(uv.y * u_scale * 8.0 + t) * u_amount * 0.06;
+  w.y += cos(uv.x * u_scale * 6.0 - t * 0.8) * u_amount * 0.06;
+  return sampleSource(w);
+}
+
+vec4 swirlColor(vec2 uv) {
+  vec2 p = aspectUv(uv);
+  float r = length(p);
+  float ang = u_amount * 3.0 * smoothstep(0.6, 0.0, r)
+    + (u_phase + u_time) * TAU;
+  float c = cos(ang);
+  float s = sin(ang);
+  p = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+  p.x /= max(u_resolution.x / u_resolution.y, 1e-4);
+  return sampleSource(p + 0.5);
+}
+
+vec4 kaleidoColor(vec2 uv) {
+  vec2 p = aspectUv(uv);
+  float rad = length(p);
+  float seg = TAU / max(3.0, floor(3.0 + u_scale * 2.0));
+  float ang = atan(p.y, p.x) + (u_phase + u_time) * TAU;
+  ang = mod(ang, seg);
+  ang = min(ang, seg - ang);
+  vec2 kuv = vec2(cos(ang), sin(ang)) * rad;
+  kuv.x /= max(u_resolution.x / u_resolution.y, 1e-4);
+  return sampleSource(kuv * (0.7 + u_amount * 0.8) + 0.5);
+}
+
+vec4 glitchColor(vec2 uv, out float rgbShift) {
   float row = floor(uv.y * u_scale * 60.0);
-  float seed = hash21(vec2(row, floor(u_phase * 8.0)));
-  float rowActive = step(1.0 - u_amount * 0.6, seed);
-  float offset = (seed - 0.5) * u_amount * 0.2 * rowActive;
-  rgbShift = u_amount * 0.02 * rowActive;
-  return uv + vec2(offset, 0.0);
+  float seed = hash21(vec2(row, floor(u_time * 8.0 + u_phase * 8.0)));
+
+  float rowOn = step(1.0 - u_amount * 0.6, seed);
+  float offset = (seed - 0.5) * u_amount * 0.2 * rowOn;
+  rgbShift = u_amount * 0.02 * rowOn;
+  vec4 color = sampleSource(uv + vec2(offset, 0.0));
+  if (rgbShift > 0.0) {
+    color = vec4(
+      sampleSource(uv + vec2(offset + rgbShift, 0.0)).r,
+      color.g,
+      sampleSource(uv + vec2(offset - rgbShift, 0.0)).b,
+      color.a
+    );
+  }
+  return color;
+}
+
+vec4 chromaticColor(vec2 uv) {
+  vec2 dir = uv - 0.5;
+  float dist = length(dir);
+  float pulse = 0.6 + 0.4 * cos((u_phase + u_time) * TAU);
+  vec2 off = dist > 1e-4
+    ? normalize(dir) * u_amount * 0.08 * dist * (1.0 + u_scale * 0.3) * pulse
+    : vec2(0.0);
+  vec4 color = sampleSource(uv);
+  color.r = sampleSource(uv + off).r;
+  color.b = sampleSource(uv - off).b;
+  return color;
+}
+
+vec4 pixelateColor(vec2 uv) {
+  float breathe = 0.85 + 0.3 * sin((u_phase + u_time) * TAU);
+  float cell = max(1.0, u_scale * (1.0 + u_amount * 24.0) * breathe);
+  vec2 grid = u_resolution / cell;
+  vec2 cellUv = (floor(uv * grid) + 0.5) / grid;
+  return sampleSource(cellUv);
 }
 
 vec4 halftoneColor(vec2 uv) {
   vec2 cellUv = uv * u_resolution;
-  float cell = max(24.0 - u_scale * 2.5, 6.0);
+  float pulse = 0.9 + 0.15 * sin((u_phase + u_time) * TAU);
+  float cell = max((24.0 - u_scale * 2.5) * pulse, 6.0);
   vec2 grid = cellUv / cell;
   vec2 cellId = floor(grid);
   vec2 cellCenter = (cellId + 0.5) * cell / u_resolution;
   vec4 color = sampleSource(cellCenter);
-  float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114)) * color.a;
+  float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
   float radius = mix(0.08, 0.62, lum * u_amount + (1.0 - u_amount) * lum);
   vec2 local = fract(grid) - 0.5;
   float d = length(local);
   float alpha = smoothstep(radius, radius - 0.08, d);
   return vec4(color.rgb, color.a * alpha);
+}
+
+vec4 ditherColor(vec2 uv) {
+  vec4 color = sampleSource(uv);
+  float block = max(1.0, u_scale * 2.0);
+  float a = (u_phase + u_time) * TAU;
+  float d = bayer8(
+    uv * u_resolution / block + vec2(cos(a), sin(a)) * 2.0
+  );
+  float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+  float on = step(d * (1.05 - u_amount * 0.4), lum);
+  return vec4(color.rgb * on, color.a * on);
+}
+
+vec4 posterizeColor(vec2 uv) {
+  vec4 color = sampleSource(uv);
+  float levels = max(2.0, floor(2.0 + u_scale * 2.0 - u_amount * 6.0));
+  color.rgb = floor(color.rgb * levels + 0.5) / levels;
+  return color;
+}
+
+vec4 edgeColor(vec2 uv) {
+  vec2 texel = (1.0 + u_scale * 0.5) / u_sourceSize;
+  float tl = sourceLum(uv + vec2(-texel.x, texel.y));
+  float tc = sourceLum(uv + vec2(0.0, texel.y));
+  float tr = sourceLum(uv + vec2(texel.x, texel.y));
+  float ml = sourceLum(uv + vec2(-texel.x, 0.0));
+  float mr = sourceLum(uv + vec2(texel.x, 0.0));
+  float bl = sourceLum(uv + vec2(-texel.x, -texel.y));
+  float bc = sourceLum(uv + vec2(0.0, -texel.y));
+  float br = sourceLum(uv + vec2(texel.x, -texel.y));
+  float gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;
+  float gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
+  float g = length(vec2(gx, gy));
+  float e = smoothstep(0.04, 0.5, g * (0.5 + u_amount * 4.0));
+  vec3 src = sampleSource(uv).rgb;
+  vec3 tint = 0.5 + 0.5 * cos(
+    (u_phase + u_time) * TAU + uv.x * 3.0 + uv.y * 2.0 + vec3(0.0, 2.1, 4.2)
+  );
+  vec3 col = e * (src * 0.6 + tint * 0.7);
+  return vec4(col, e);
+}
+
+vec4 chromeColor(vec2 uv) {
+  vec2 texel = 1.0 / u_sourceSize;
+  float gx = sourceLum(uv + vec2(texel.x, 0.0))
+    - sourceLum(uv - vec2(texel.x, 0.0));
+  float gy = sourceLum(uv + vec2(0.0, texel.y))
+    - sourceLum(uv - vec2(0.0, texel.y));
+  vec4 src = sampleSource(uv);
+  float n = length(vec2(gx, gy)) * (2.0 + u_amount * 6.0);
+  vec3 band = 0.5 + 0.5 * cos(
+    n * u_scale * 6.0 - (u_phase + u_time) * TAU
+      + vec3(0.0, 1.0, 2.0)
+  );
+  vec3 col = mix(src.rgb * 0.12, band, smoothstep(0.02, 0.5, n));
+  return vec4(col, src.a);
+}
+
+vec4 grainColor(vec2 uv) {
+  vec4 color = sampleSource(uv);
+  float a = (u_phase + u_time) * TAU * 3.0;
+  vec2 seedUv = uv * u_resolution + vec2(cos(a), sin(a)) * 73.0;
+  float n = hash21(seedUv) - 0.5;
+  return vec4(color.rgb + n * u_amount * color.a, color.a);
 }
 
 void main() {
@@ -160,28 +347,35 @@ void main() {
   }
 
   vec4 color;
-  if (u_effect == 2) {
-    color = halftoneColor(uv);
-  } else {
-    vec2 warped = uv;
+  if (u_effect == 0) {
+    color = sampleSource(flowUv(uv));
+  } else if (u_effect == 1) {
+    color = sampleSource(rippleUv(uv));
+  } else if (u_effect == 2) {
+    color = waveColor(uv);
+  } else if (u_effect == 3) {
+    color = swirlColor(uv);
+  } else if (u_effect == 4) {
+    color = kaleidoColor(uv);
+  } else if (u_effect == 5) {
     float rgbShift = 0.0;
-    if (u_effect == 0) {
-      warped = flowUv(uv);
-    } else if (u_effect == 1) {
-      warped = rippleUv(uv);
-    } else {
-      warped = glitchUv(uv, rgbShift);
-    }
-    color = sampleSource(warped);
-    if (rgbShift > 0.0) {
-      vec4 shifted = vec4(
-        sampleSource(warped + vec2(rgbShift, 0.0)).r,
-        color.g,
-        sampleSource(warped - vec2(rgbShift, 0.0)).b,
-        color.a
-      );
-      color = shifted;
-    }
+    color = glitchColor(uv, rgbShift);
+  } else if (u_effect == 6) {
+    color = chromaticColor(uv);
+  } else if (u_effect == 7) {
+    color = pixelateColor(uv);
+  } else if (u_effect == 8) {
+    color = halftoneColor(uv);
+  } else if (u_effect == 9) {
+    color = ditherColor(uv);
+  } else if (u_effect == 10) {
+    color = posterizeColor(uv);
+  } else if (u_effect == 11) {
+    color = edgeColor(uv);
+  } else if (u_effect == 12) {
+    color = chromeColor(uv);
+  } else {
+    color = grainColor(uv);
   }
   fragColor = color;
 }

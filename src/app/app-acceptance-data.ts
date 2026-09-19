@@ -13,7 +13,15 @@ const persistedSlices =
     : [];
 
 export const appTransferMode: ToolcraftTransferMode = {
-  animationIntent: { mode: "none" },
+  animationIntent: {
+    loopDuration: {
+      evidence:
+        "One ambient shader cycle runs 2s at the default 0.5 cycles-per-second speed; the 8s loop holds exactly four integer cycles so first and last frames stitch at the wrap.",
+      seconds: 8,
+      source: "product-derived",
+    },
+    mode: "timeline-playback",
+  },
   mode: "new-toolcraft-app",
   referenceInputs: [],
 };
@@ -92,6 +100,12 @@ const productInteractionOwnership: ToolcraftInteractionOwnershipEntry[] = [
     "Phase offset is a continuous scalar; the slider scrubs the static pattern without a transport surface.",
   ),
   panelInteraction(
+    "interaction.effect-speed",
+    "effect.speed",
+    "precise-value-entry",
+    "Motion rate is a continuous scalar; the slider adjusts how many effect cycles fit inside one runtime timeline loop.",
+  ),
+  panelInteraction(
     "interaction.include-background",
     "export.includeBackground",
     "property-edit",
@@ -115,7 +129,7 @@ export const appProductReadiness: ToolcraftProductReadiness = {
   mode: "product",
   productName: "Shader Forge",
   productSummary:
-    "A WebGL2 shader canvas that distorts custom text or an uploaded image with selectable fragment effects and exports the result as a PNG or JPG image.",
+    "A WebGL2 shader canvas that animates custom text or an uploaded image through selectable looping fragment effects on the runtime timeline and exports the result as a PNG or JPG image.",
   requestedBehavior:
     "shader with custom text or image as input, react web app",
   viewInteraction: {
@@ -259,7 +273,7 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "select",
     evidence: "product-output",
     expectedObservable:
-      "Each Flow, Ripple, Halftone, and Glitch option produces a visibly different shader output.",
+      "Each of the fourteen presets (Flow, Ripple, Wave, Swirl, Kaleido, Glitch, Chromatic, Pixelate, Halftone, Dither, Posterize, Edge, Chrome, Grain) produces a visibly different animated shader output.",
     fixture: "default text source",
     id: "effect.preset",
     interactionId: "interaction.effect-preset",
@@ -327,6 +341,61 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "control",
     target: "effect.phase",
     userAction: "Drag the Phase slider to a different value.",
+  },
+  {
+    automated: true,
+    automatedTestName:
+      "proves the speed slider scales shader animation rate",
+    browser: {
+      budget: "standard",
+      file: shaderSpec,
+      testName: "browser: speed slider changes the shader animation rate",
+    },
+    componentType: "slider",
+    evidence: "product-output",
+    expectedObservable:
+      "Dragging Speed changes how many effect cycles play inside one timeline loop; 0 freezes the animated frame.",
+    fixture: "default text source",
+    id: "effect.speed",
+    interactionId: "interaction.effect-speed",
+    kind: "control",
+    target: "effect.speed",
+    userAction: "Drag the Speed slider to a different value.",
+  },
+  {
+    automated: true,
+    automatedTestName:
+      "proves the timeline transport drives shader playback",
+    browser: {
+      budget: "standard",
+      file: shaderSpec,
+      testName:
+        "browser: timeline playback drives the animated shader frame",
+    },
+    componentType: "timeline",
+    evidence: "timeline-output",
+    expectedObservable:
+      "Playing advances the animated shader frame, pausing freezes it, scrubbing renders the deterministic frame at that time, editing duration keeps the seamless forward-only loop, and the first and last frames match.",
+    fixture: "default text source",
+    id: "timeline.playback",
+    kind: "runtime",
+    target: "timeline.playback",
+    timelineCoverage: "playback",
+    timelineLoopProof: {
+      direction: "forward-only",
+      durationChange: "reproved-after-edit",
+      reversePlayback: "forbidden",
+      seam: "first-last-match",
+    },
+    timelinePlaybackCoverage: [
+      "pause-resume",
+      "scrub",
+      "duration",
+      "loop",
+      "rendered-frame",
+    ],
+    userAction:
+      "Press Play and Pause on the timeline transport, scrub the playhead, edit the loop duration, and compare the rendered frame at the loop seam.",
   },
   {
     automated: true,
@@ -433,7 +502,7 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "runtime",
     renderScaleCoverage: {
       kind: "selected-backing-pixels",
-      states: ["interaction", "steady"],
+      states: ["interaction", "playback", "steady"],
     },
     target: "canvas.renderScale",
     userAction: "Change Render scale in Setup and observe the shader output.",
@@ -552,6 +621,7 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
         "effect.amount",
         "effect.scale",
         "effect.phase",
+        "effect.speed",
       ],
       title: "Effect",
     },

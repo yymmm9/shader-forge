@@ -21,6 +21,7 @@ export type ShaderRenderParams = Readonly<{
   scale: number;
   source: TexImageSource | null;
   sourceTransform: ShaderSourceTransform;
+  time: number;
 }>;
 
 export type ShaderRenderer = Readonly<{
@@ -44,6 +45,7 @@ const UNIFORM_NAMES = [
   "u_amount",
   "u_scale",
   "u_phase",
+  "u_time",
   "u_sourceTransform",
 ] as const;
 
@@ -223,6 +225,7 @@ export function createShaderRenderer(
       gl.uniform1f(uniforms.u_amount, params.amount);
       gl.uniform1f(uniforms.u_scale, params.scale);
       gl.uniform1f(uniforms.u_phase, params.phase);
+      gl.uniform1f(uniforms.u_time, params.time);
       gl.uniform3f(
         uniforms.u_sourceTransform,
         params.sourceTransform.quarterTurns % 4,
