@@ -7,6 +7,7 @@
 - **`sourcePass` kẹt "pending" vĩnh viễn → canvas không bao giờ vẽ（黑屏根因）**：`useToolcraftPipelinePass` 的 cacheInput `"text.typography"` 用 `getShaderTypography(state)` —— 每次 render 返回新 object，`hasEqualCacheInput`（Object.is 逐 key 比较）永不成立 → `request` 每 render 新建 → `runPass` 每 render 重跑 → `resolved.request` 永远落后于当前 request → status 永远 "pending" → draw() early-return 于 `sourcePass.status !== "success"` → canvas 停留在默认 300×150 全透明。修复：`"text.typography"` cache key 改为 `JSON.stringify(state.values["text.typography"])`（stable-by-content）；`params` 改 `useMemo([state])` 避免每 render 重跑 draw。
 - `SHADER_FRAGMENT_SOURCE` 中 `glitchUv` 使用 GLSL ES 3.00 保留字 `active` 作为变量名，导致 fragment shader 编译失败、`createShaderRenderer` 返回 null、画布永不渲染（第一层故障）。改名 `rowActive`，浏览器内实测编译/链接通过。
 - 诊断路径：Playwright 直连线上页面 — `data-renderer="webgl2"`、`data-toolcraft-product-scene-status="ready"`、canvas rect 1080×1080 但 backing 300×150 → 锁定 pass 状态卡点。
+- **线上验证通过**：部署后 canvas backing = 2160×2160（1080 × renderScale 2），预览渲染出 "SHADER" 文字 + Flow 扭曲效果可见；Export PNG 下载 741KB 且签名合法。
 
 ## 2025-09-19 — 交付上线
 
