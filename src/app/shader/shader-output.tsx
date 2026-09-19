@@ -26,7 +26,6 @@ import {
   getShaderSourceImageAsset,
   getShaderSourceKind,
   getShaderText,
-  getShaderTypography,
 } from "./shader-state";
 
 import styles from "./shader-output.module.css";
@@ -50,7 +49,10 @@ export function ShaderForgeOutput(): React.JSX.Element {
   );
 
   const sourceAsset = getShaderSourceImageAsset(state);
-  const params = getShaderParams(state);
+  const params = React.useMemo(() => getShaderParams(state), [state]);
+  const typographyKey = JSON.stringify(
+    state.values["text.typography"] ?? null,
+  );
 
   const sourcePass = useToolcraftPipelinePass(
     shaderSourceTexturePass,
@@ -58,7 +60,7 @@ export function ShaderForgeOutput(): React.JSX.Element {
       "source.image": sourceAsset?.id ?? null,
       "source.kind": getShaderSourceKind(state),
       "text.content": getShaderText(state),
-      "text.typography": getShaderTypography(state),
+      "text.typography": typographyKey,
     },
     async () => resolveShaderSource(state),
   );
