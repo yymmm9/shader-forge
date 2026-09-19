@@ -16,6 +16,7 @@
 
 - `npx tsc --noEmit` 通过；`validateProductAcceptanceCoverage` 仅剩已知上游 "Settings" 缺陷；app-schema/acceptance/performance 聚焦测试全过。
 - Playwright 离屏编译验证：14 种 effect 的 fragment shader 全部编译链接成功，逐 effect 渲染取样（Edge 对纯色源输出透明属预期）。
+- **线上验证**：部署 <https://shader-forge-rku7o88yp-yi-ming-zhangs-projects.vercel.app>（alias <https://shader-forge.vercel.app>）后实测 — 画布默认逐帧动画（两帧截图不同）；顶部 "Pause playback" 暂停后帧完全一致（冻结）；恢复播放后帧继续变化；Effect 面板含 Speed 控件、Settings 含 Timeline 开关。
 
 ## 2025-09-19 — 修复线上黑屏（第二轮：根因确认）
 
