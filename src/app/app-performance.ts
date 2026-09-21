@@ -111,7 +111,7 @@ function scenarioForPath(
       completionEvidence: "download",
       controlLabel: "Export PNG",
       interaction: "export",
-      target: "actions.output",
+      target: "actions.shader",
     };
   }
 

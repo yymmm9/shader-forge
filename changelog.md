@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-21 — Randomize / Copy params 按钮 + 3 个可读性新效果
+
+### Added
+
+- **Randomize 按钮**（sticky footer）：随机切换 preset 并生成 amount（0.15–0.9，保住文字可读区间）、scale、phase、speed（0.15–1.25）的新组合，一次 `controls.apply` 提交，画面立即更新且动画不中断。
+- **Copy params 按钮**（sticky footer）：把当前配方 `{preset, amount, scale, phase, speed, text, typography}` 序列化为 JSON 写入剪贴板，可直接粘贴存档作为 preset；成功/失败均走 Toolcraft action feedback 提示。
+- **3 个新 preset**（14 → 17 种），全部以源亮度/alpha 为遮罩、只强化轮廓与氛围而不破坏字形内部：
+  - `Liquid`：fbm domain-warp 彩虹流体混色
+  - `Aura`：Sobel 边缘检测驱动的彩色辉光
+  - `Prism`：梯度方向驱动的棱镜边缘着色
+
+### Changed
+
+- 产品 `panelActions` 声明在专用 `actionGroup` section，runtime 将其与 Export PNG 合并为单一 footer 控件（target `actions.shader`）；export acceptance 行与 performance export 场景同步 retarget。
+
+### Verification
+
+- `npx tsc --noEmit` 通过；schema 解析确认 footer 合并为 `panelActions[shader.randomize, shader.copy-params, export.png]`。
+- Playwright 离屏 WebGL2 编译验证：含 3 个新 effect 的 fragment shader 编译链接通过。
+- app-schema / acceptance / performance-gates 聚焦测试全过；worklog 校验补齐上轮 entry 缺失字段后归零。
+
 ## 2025-09-19 — 连续动画 + 14 种 shader 模式 + 时间轴播放
 
 ### Added

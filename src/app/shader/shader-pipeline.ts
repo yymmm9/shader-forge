@@ -111,7 +111,7 @@ export const shaderPipelineRegistration =
         interaction: "export",
         invalidates: ["shader-export"],
         mustNotInvalidate: ["source-texture", "shader-frame"],
-        targets: ["actions.output"],
+        targets: ["actions.shader"],
       },
     ],
     passes: [

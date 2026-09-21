@@ -273,7 +273,7 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "select",
     evidence: "product-output",
     expectedObservable:
-      "Each of the fourteen presets (Flow, Ripple, Wave, Swirl, Kaleido, Glitch, Chromatic, Pixelate, Halftone, Dither, Posterize, Edge, Chrome, Grain) produces a visibly different animated shader output.",
+      "Each of the seventeen presets (Flow, Ripple, Wave, Swirl, Kaleido, Glitch, Chromatic, Pixelate, Halftone, Dither, Posterize, Edge, Chrome, Grain, Liquid, Aura, Prism) produces a visibly different animated shader output.",
     fixture: "default text source",
     id: "effect.preset",
     interactionId: "interaction.effect-preset",
@@ -566,8 +566,30 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     fixture: "default text source",
     id: "export.action.image",
     kind: "control",
-    target: "actions.output",
+    target: "actions.shader",
     userAction: "Click the Export action and inspect the downloaded image.",
+  },
+  {
+    actionCoverage: ["shader.randomize", "shader.copy-params", "export.png"],
+    automated: true,
+    automatedTestName:
+      "proves the shader footer actions randomize and copy parameters",
+    browser: {
+      budget: "standard",
+      file: shaderSpec,
+      testName:
+        "browser: randomize applies new effect values and copy params writes the clipboard",
+    },
+    componentType: "panelActions",
+    evidence: "command-side-effect",
+    expectedObservable:
+      "Randomize commits a new preset and parameter set that visibly changes the shader output, Copy params writes the current recipe JSON to the clipboard and reports feedback, and Export PNG downloads the image artifact.",
+    fixture: "default text source",
+    id: "actions.shader",
+    kind: "control",
+    target: "actions.shader",
+    userAction:
+      "Click Randomize in the sticky footer, then click Copy params and paste the clipboard contents.",
   },
 ];
 

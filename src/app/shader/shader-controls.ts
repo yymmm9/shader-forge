@@ -113,6 +113,9 @@ export const shaderControlSections: readonly ToolcraftControlSectionSchema[] =
             { label: "Edge", value: "edge" },
             { label: "Chrome", value: "chrome" },
             { label: "Grain", value: "grain" },
+            { label: "Liquid", value: "liquid" },
+            { label: "Aura", value: "aura" },
+            { label: "Prism", value: "prism" },
           ],
           orderRole: "primary",
           performanceReason:
@@ -212,5 +215,38 @@ export const shaderControlSections: readonly ToolcraftControlSectionSchema[] =
       },
       id: "background",
       title: "Background",
+    },
+    {
+      actionGroup: "primary",
+      controls: {
+        shaderActions: {
+          actions: [
+            {
+              icon: "shuffle",
+              label: "Randomize",
+              value: "shader.randomize",
+              variant: "secondary",
+            },
+            {
+              icon: "copy",
+              label: "Copy params",
+              value: "shader.copy-params",
+              variant: "outline",
+            },
+          ],
+          applicability: { mode: "always" },
+          description:
+            "Randomize shuffles the preset and effect parameters; Copy params writes the current recipe as JSON for sharing or storing presets.",
+          label: false,
+          orderRole: "action",
+          performanceReason:
+            "Footer actions apply or read committed effect values once per click; no per-frame work.",
+          performanceRole: "responsiveness",
+          target: "actions.shader",
+          type: "panelActions",
+        },
+      },
+      id: "actions",
+      title: "Actions",
     },
   ];

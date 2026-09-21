@@ -20,7 +20,7 @@ Shader Forge 是一个把文字或图片变成动态 shader 视觉效果的网�
 
 ## Effect（效果）
 
-- **Preset**：14 种 fragment shader 效果 —
+- **Preset**：17 种 fragment shader 效果 —
   - `Flow`：流体式 domain-warp 扭曲
   - `Ripple`：涟漪扩散
   - `Wave`：波浪形变
@@ -35,8 +35,17 @@ Shader Forge 是一个把文字或图片变成动态 shader 视觉效果的网�
   - `Edge`：霓虹边缘描边
   - `Chrome`：梯度金属色带
   - `Grain`：动态颗粒噪点
+  - `Liquid`：彩虹流体混色（保持轮廓可读）
+  - `Aura`：边缘彩色辉光（保持轮廓可读）
+  - `Prism`：棱镜边缘着色（保持轮廓可读）
 - **Amount / Scale / Phase**：效果强度、空间尺度与相位偏移，拖动滑杆实时预览。
 - **Speed**：动画速率（每秒钟的循环周期数），0 为静止画面。
+
+## 底部操作栏
+
+- **Randomize**：随机换一个 preset 并生成一组协调的参数（强度/尺度/相位/速率），快速探索效果。参数范围经过约束，文字模式下大概率保持可读；不满意就再点一次。
+- **Copy params**：把当前效果的完整配方（preset + amount/scale/phase/speed + 文字与排版）复制为 JSON。粘贴存到笔记里就是一个 preset，下次照着参数手动调回即可。
+- **Export PNG / Export JPG**：导出当前播放头那一帧的图片。
 
 ## Timeline（时间轴）
 

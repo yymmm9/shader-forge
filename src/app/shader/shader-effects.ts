@@ -12,7 +12,10 @@ export type ShaderEffectPreset =
   | "posterize"
   | "edge"
   | "chrome"
-  | "grain";
+  | "grain"
+  | "liquid"
+  | "aura"
+  | "prism";
 
 export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "flow",
@@ -29,6 +32,9 @@ export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "edge",
   "chrome",
   "grain",
+  "liquid",
+  "aura",
+  "prism",
 ] as const;
 
 export const SHADER_EFFECT_PRESET_INDEX: Readonly<
@@ -48,6 +54,9 @@ export const SHADER_EFFECT_PRESET_INDEX: Readonly<
   edge: 11,
   chrome: 12,
   grain: 13,
+  liquid: 14,
+  aura: 15,
+  prism: 16,
 };
 
 export const SHADER_VERTEX_SOURCE = `#version 300 es
@@ -339,6 +348,59 @@ vec4 grainColor(vec2 uv) {
   return vec4(color.rgb + n * u_amount * color.a, color.a);
 }
 
+vec4 liquidColor(vec2 uv) {
+  vec4 src = sampleSource(uv);
+  float a = (u_phase + u_time) * TAU;
+  vec2 p = aspectUv(uv) * (1.0 + u_scale * 0.8);
+  vec2 q = vec2(
+    fbm(p + vec2(cos(a), sin(a)) * 0.7),
+    fbm(p + vec2(sin(a + 1.7), cos(a + 1.7)) * 0.7 + 5.2)
+  );
+  vec2 r = vec2(
+    fbm(p + 3.0 * q + vec2(1.7, 9.2) + a * 0.2),
+    fbm(p + 3.0 * q + vec2(8.3, 2.8) - a * 0.15)
+  );
+  float f = fbm(p + 3.0 * r);
+  vec3 grad = 0.5 + 0.5 * cos(
+    f * 4.0 + a + vec3(0.0, 0.33, 0.67) * TAU
+  );
+  vec3 col = mix(src.rgb, grad, u_amount);
+  return vec4(col, src.a);
+}
+
+vec4 auraColor(vec2 uv) {
+  vec4 src = sampleSource(uv);
+  vec2 texel = (1.0 + u_scale) / u_sourceSize;
+  float gx = sourceLum(uv + vec2(texel.x, 0.0))
+    - sourceLum(uv - vec2(texel.x, 0.0));
+  float gy = sourceLum(uv + vec2(0.0, texel.y))
+    - sourceLum(uv - vec2(0.0, texel.y));
+  float g = length(vec2(gx, gy));
+  float a = (u_phase + u_time) * TAU;
+  vec3 tint = 0.5 + 0.5 * cos(
+    a + uv.x * 4.0 + uv.y * 3.0 + vec3(0.0, 2.0, 4.0)
+  );
+  float halo = smoothstep(0.02, 0.6, g) * u_amount;
+  return vec4(src.rgb + tint * halo * 0.9, src.a);
+}
+
+vec4 prismColor(vec2 uv) {
+  vec4 src = sampleSource(uv);
+  vec2 texel = (1.0 + u_scale * 0.5) / u_sourceSize;
+  float gx = sourceLum(uv + vec2(texel.x, 0.0))
+    - sourceLum(uv - vec2(texel.x, 0.0));
+  float gy = sourceLum(uv + vec2(0.0, texel.y))
+    - sourceLum(uv - vec2(0.0, texel.y));
+  float g = length(vec2(gx, gy));
+  float a = (u_phase + u_time) * TAU;
+  vec3 tint = 0.5 + 0.5 * cos(
+    a + atan(gy, gx) * 2.0 + vec3(0.0, 2.1, 4.2)
+  );
+  float edge = smoothstep(0.05, 0.8, g) * u_amount;
+  vec3 col = mix(src.rgb, src.rgb * 0.5 + tint, edge * 0.85);
+  return vec4(col, src.a);
+}
+
 void main() {
   vec2 uv = v_uv;
   if (u_hasSource < 0.5) {
@@ -374,8 +436,14 @@ void main() {
     color = edgeColor(uv);
   } else if (u_effect == 12) {
     color = chromeColor(uv);
-  } else {
+  } else if (u_effect == 13) {
     color = grainColor(uv);
+  } else if (u_effect == 14) {
+    color = liquidColor(uv);
+  } else if (u_effect == 15) {
+    color = auraColor(uv);
+  } else {
+    color = prismColor(uv);
   }
   fragColor = color;
 }

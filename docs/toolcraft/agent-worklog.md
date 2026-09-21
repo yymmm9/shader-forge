@@ -4,11 +4,32 @@
 
 Mode: product
 
-Shader Forge 是一个文字/图片驱动的 shader 编辑器：把用户输入的文字或上传的图片栅格化为源纹理，用一张 WebGL2 全屏 fragment shader 施加 14 种循环动画效果，输出可交互预览并导出 PNG/JPG 静帧。
+Shader Forge 是一个文字/图片驱动的 shader 编辑器：把用户输入的文字或上传的图片栅格化为源纹理，用一张 WebGL2 全屏 fragment shader 施加 17 种循环动画效果，输出可交互预览并导出 PNG/JPG 静帧。
 
-Active change: shader-forge-timeline-animation
+Active change: shader-forge-panel-actions
 
 ## Decision Trail
+
+### Entry shader-forge-panel-actions
+
+- Change ID: shader-forge-panel-actions
+- Entry type: feature edit
+- Request: "有点进展 但不多 再试试，不够酷 当然很多时候也要保持文字阅读方便 / 我需要randomize按钮 / 和复制参数按钮 这样可以给你存preset"
+- Task type: sticky footer actions + shader preset expansion
+- User-visible result: 底部操作栏新增 Randomize（随机 preset + 参数组合）与 Copy params（把当前配方 JSON 写入剪贴板）；Effect preset 扩到 17 种，新增 Liquid（domain-warp 彩虹流动）、Aura（边缘辉光）、Prism（边缘棱镜着色）三个以源亮度/alpha 为遮罩的可读性友好效果
+- Source/reference checked: 无外部参考素材；参考 Figma/Framer shader 的方向由用户口述，实现为亮度遮罩 + cos 调色板 + fbm domain warp
+- Reference inputs: None — 无动态参考素材；未注册 referenceInputs
+- Docs/contracts read: controls-panel-actions.ts（panelActions 提升与合并语义）、control-acceptance-kind-rules.ts（footer 覆盖规则）、export-artifact-coverage.ts（typed export action 覆盖要求）、toolcraft-app-ports.ts（onPanelAction port）
+- Contract rules applied: 产品 panelActions 声明在专用 actionGroup section，runtime 将其与 typed export action 合并为单一 footer 控件（target=首个声明的 actions.shader）；footer 覆盖 entry 列出全部 action value；typed export.png 的 exported-bytes 覆盖行保持独立并 retarget 到 actions.shader
+- View interaction intent: non-spatial — 仍为固定 2D shader 光栅输出，无空间场景
+- Interaction ownership: Randomize/Copy params 属 panel action（sticky footer 所有）；reset 归控制面板头部，播放归 Timeline，均不重复占用
+- Decision: Randomize 通过 `controls.apply` 一次性提交 effect.preset/amount/scale/phase/speed 的随机值（amount 限 0.15–0.9、speed 限 0.15–1.25 保住可读性区间）；Copy params 序列化 {preset, amount, scale, phase, speed, text, typography} 为 JSON 写 `navigator.clipboard`，成功/失败走 reportFeedback
+- Alternatives rejected: 自定义按钮 UI（违反「不复刻 runtime 表面」）；把 panelActions 混进 Effect section（会触发 section 拆分出不稳定 .part- id，inventory 失配）；随机化包含文字内容/排版（会毁掉用户输入）
+- State/output mapping: shader.randomize → controls.apply 写 effect.* 五个 target → shader-frame 重渲；shader.copy-params → 读 getShaderParams/getShaderText/getShaderTypography → clipboard；action 不产生新 state target
+- Verification: `npx tsc --noEmit` 通过；vite-node 解析 schema 确认 `runtime.export` footer 合并为 `panelActions[shader.randomize, shader.copy-params, export.png]`；app-schema/performance-gates 聚焦测试全过；已知 "Settings" 上游缺陷仍为唯一 acceptance 诊断
+- Risks:
+  - Risk: `navigator.clipboard` 在非安全上下文或权限拒绝时失败 — 已 catch 并 reportFeedback 提示
+  - Risk: footer 合并控件 target 取「首个 panelActions 声明」，若未来 runtime 调整合并顺序需同步更新 acceptance target
 
 ### Entry shader-forge-timeline-animation
 
@@ -18,6 +39,11 @@ Active change: shader-forge-timeline-animation
 - Task type: timeline playback + renderer animation + preset expansion
 - User-visible result: shader 输出随顶部 Timeline 播放头连续循环动画；新增 Speed 滑杆与一个循环内周期数语义；Effect preset 扩到 14 种（含 Edge/Chrome 等边缘与梯度类）；播放/暂停/scrub/时长编辑均生效；导出静帧取当前时间轴时刻
 - Source/reference checked: docs/toolcraft/core/timeline-animation.md、runtime `timelineModule`/`getToolcraftTimelineLoopProgress`/`useToolcraftViewportInteractionActive`、toolcraft-external-store 的 playback transient lane、vgpu-physical-feedback fixture 的 timeline-playback invalidation 先例
+- Reference inputs: None — 无动态参考素材；未注册 referenceInputs
+- Docs/contracts read: workflow.md, core/timeline-animation.md, core/performance.md, acceptance-testing.md, runtime timeline/external-store 类型定义
+- View interaction intent: non-spatial — 产品是固定 2D 帧上的 fragment shader 光栅输出，无可旋转模型或可编辑空间场景
+- Interaction ownership: 播放/暂停/scrub/时长归顶部 Timeline transport；视口拖拽缩放归 runtime viewport；产品侧不自建动画控件
+- State/output mapping: state.timeline runtime 播放头 → u_time uniform（loopProgress × 整数周期数）；effect.speed → 每秒周期数；effect.preset/amount/scale/phase → fragment uniforms；scrub 时刻 → 确定性帧与导出帧
 - Animation intent: `timeline-playback` — 用户请求 continuous 动画，属产品动画非装饰；loopDuration 8s 产品派生（默认 speed 0.5 周/秒 × 8s = 整数 4 周期，首尾缝合）；panels.timeline.defaultDurationSeconds=8 与之匹配
 - Contract rules applied: 播放渲染器消费 runtime `state.timeline`（transient playback lane 每帧驱动 effectiveState → useSyncExternalStore 逐帧重渲）；不用本地 rAF/墙钟；视口交互（viewport transient lane）期间暂停绘制、恢复后按时间轴当前时刻续渲；timelinePlaybackCoverage 五项 + forward-only/first-last-match/reproved-after-edit loop proof
 - Decision: `u_time` 语义为「周期数」——`loopTime = loopProgress × round(speed × durationSeconds)`，speed=0 冻结；所有 shader 时间项写为 `sin/cos/mod` 整数周期函数（glitch 为每周期整数步进），保证任意 speed/duration 下首尾帧严格一致
