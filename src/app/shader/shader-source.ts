@@ -33,6 +33,7 @@ export type ShaderSourceDescriptor = Readonly<
 >;
 
 export type ResolvedShaderSource = Readonly<{
+  band: number;
   source: TexImageSource | null;
   transform: ShaderSourceTransform;
 }>;
@@ -87,12 +88,14 @@ export async function materializeShaderSource(
 ): Promise<ResolvedShaderSource> {
   if (descriptor.kind === "text") {
     await ensureShaderTextFont(descriptor.typography);
+    const raster = rasterizeShaderText(
+      descriptor.text,
+      descriptor.typography,
+      descriptor.aspect,
+    );
     return {
-      source: rasterizeShaderText(
-        descriptor.text,
-        descriptor.typography,
-        descriptor.aspect,
-      ),
+      band: raster?.band ?? 1,
+      source: raster?.canvas ?? null,
       transform: identityTransform,
     };
   }
@@ -102,10 +105,11 @@ export async function materializeShaderSource(
       await settleShaderMediaImage(descriptor.assetId);
     }
     return {
+      band: 1,
       source: getShaderMediaBitmap(descriptor.assetId) ?? null,
       transform: descriptor.transform,
     };
   }
 
-  return { source: null, transform: identityTransform };
+  return { band: 1, source: null, transform: identityTransform };
 }

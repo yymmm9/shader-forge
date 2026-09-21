@@ -123,7 +123,7 @@ export function ShaderForgeOutput(): React.JSX.Element {
           : 1);
       canvas.width = Math.max(1, Math.round(rect.width * deviceScale));
       canvas.height = Math.max(1, Math.round(rect.height * deviceScale));
-      const { source, transform } = await materializeShaderSource(
+      const { band, source, transform } = await materializeShaderSource(
         sourcePass.result,
       );
       if (cancelled || interacting) return;
@@ -132,6 +132,7 @@ export function ShaderForgeOutput(): React.JSX.Element {
         rendered =
           renderer.render({
             amount: params.amount,
+            band,
             effect: params.effect,
             phase: params.phase,
             scale: params.scale,

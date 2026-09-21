@@ -127,15 +127,20 @@ export async function ensureShaderTextFont(
   await ensureShaderFont(typography.fontId, typography.fontWeight);
 }
 
-const rasterCache = { canvas: null as OffscreenCanvas | null, key: "" };
+export type ShaderTextRaster = Readonly<{
+  band: number;
+  canvas: OffscreenCanvas;
+}>;
+
+const rasterCache = { key: "", raster: null as ShaderTextRaster | null };
 
 export function rasterizeShaderText(
   text: string,
   typography: ShaderTypography,
   aspect: number,
-): OffscreenCanvas | null {
+): ShaderTextRaster | null {
   const cacheKey = JSON.stringify([text, typography, aspect]);
-  if (rasterCache.key === cacheKey) return rasterCache.canvas;
+  if (rasterCache.key === cacheKey) return rasterCache.raster;
 
   const family = getFontPickerFontById(typography.fontId)?.family ?? "Inter";
 
@@ -154,9 +159,9 @@ export function rasterizeShaderText(
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
   if (lines.length === 0) {
-    rasterCache.canvas = canvas;
+    rasterCache.raster = { band: 1, canvas };
     rasterCache.key = cacheKey;
-    return canvas;
+    return rasterCache.raster;
   }
 
   const baseSize = (typography.fontSize / FONT_SIZE_REFERENCE) * height;
@@ -196,7 +201,13 @@ export function rasterizeShaderText(
   lines.forEach((line, index) => {
     context.fillText(line, width / 2, startY + index * lineHeight);
   });
-  rasterCache.canvas = canvas;
+  const fittedLineHeight =
+    fontSize * LINE_HEIGHT_FACTOR[typography.lineHeight];
+  const band = Math.min(
+    0.95,
+    (fittedLineHeight * (lines.length - 1) + fontSize * 1.1) / height,
+  );
+  rasterCache.raster = { band, canvas };
   rasterCache.key = cacheKey;
-  return canvas;
+  return rasterCache.raster;
 }

@@ -15,7 +15,11 @@ export type ShaderEffectPreset =
   | "grain"
   | "liquid"
   | "aura"
-  | "prism";
+  | "prism"
+  | "cylinder"
+  | "flag"
+  | "coil"
+  | "stripes";
 
 export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "flow",
@@ -35,6 +39,10 @@ export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "liquid",
   "aura",
   "prism",
+  "cylinder",
+  "flag",
+  "coil",
+  "stripes",
 ] as const;
 
 export const SHADER_EFFECT_PRESET_INDEX: Readonly<
@@ -57,6 +65,10 @@ export const SHADER_EFFECT_PRESET_INDEX: Readonly<
   liquid: 14,
   aura: 15,
   prism: 16,
+  cylinder: 17,
+  flag: 18,
+  coil: 19,
+  stripes: 20,
 };
 
 export const SHADER_VERTEX_SOURCE = `#version 300 es
@@ -81,6 +93,7 @@ uniform float u_scale;
 uniform float u_phase;
 uniform float u_time;
 uniform vec3 u_sourceTransform;
+uniform float u_band;
 
 in vec2 v_uv;
 out vec4 fragColor;
@@ -401,6 +414,93 @@ vec4 prismColor(vec2 uv) {
   return vec4(col, src.a);
 }
 
+vec4 sampleStrip(vec2 suv) {
+  vec2 t = vec2(suv.x, (suv.y - 0.5) * u_band + 0.5);
+  float angle = u_sourceTransform.x * TAU * 0.25;
+  float c = cos(angle);
+  float s = sin(angle);
+  vec2 r = t - 0.5;
+  r = vec2(r.x * c - r.y * s, r.x * s + r.y * c);
+  if (u_sourceTransform.y > 0.5) r.x = -r.x;
+  if (u_sourceTransform.z > 0.5) r.y = -r.y;
+  r += 0.5;
+  if (r.x < 0.0 || r.x > 1.0 || r.y < 0.0 || r.y > 1.0) {
+    return vec4(0.0);
+  }
+  return texture(u_source, r);
+}
+
+vec4 cylinderColor(vec2 uv) {
+  vec2 p = aspectUv(uv);
+  float rot = (u_phase + u_time) * TAU;
+  float stacks = 1.0 + floor(u_scale * 0.75);
+  float stackBand = min(0.92, 0.3 * stacks);
+  float ringH = stackBand / stacks;
+  float ly = (uv.y - (0.5 - stackBand * 0.5)) / ringH;
+  if (ly < 0.0 || ly >= stacks) return vec4(0.0);
+  float ring = floor(ly);
+  float ringV = fract(ly);
+  float x = clamp(p.x / 0.34, -1.0, 1.0);
+  float thetaF = asin(x);
+  float thetaB = 3.14159265 - thetaF;
+  float ringOff = ring * 0.37;
+  float bob = sin(thetaF * 3.0 + ringOff * TAU) * u_amount * 0.22;
+  vec4 front = sampleStrip(
+    vec2(fract((thetaF - rot) / TAU + ringOff), ringV + bob)
+  );
+  vec4 back = sampleStrip(
+    vec2(fract((thetaB - rot) / TAU - ringOff), ringV - bob)
+  );
+  front.rgb *= 0.45 + 0.55 * cos(thetaF);
+  back.rgb *= 0.14 + 0.18 * cos(thetaF);
+  back.a *= 0.5;
+  vec3 rgb = mix(back.rgb, front.rgb, front.a);
+  return vec4(rgb, max(front.a, back.a));
+}
+
+vec4 flagColor(vec2 uv) {
+  float a = (u_phase + u_time) * TAU;
+  float bandH = 0.62;
+  vec2 su = vec2(uv.x, (uv.y - 0.5) / bandH + 0.5);
+  float freq = 0.8 + u_scale * 0.45;
+  float amp = u_amount * (0.04 + 0.3 * su.x);
+  float ph = su.x * freq * TAU - a;
+  su.y += sin(ph) * amp;
+  su.x += cos(ph) * amp * 0.35;
+  vec4 c = sampleStrip(su);
+  float shade = 0.7 + 0.3 * cos(ph + 1.4);
+  return vec4(c.rgb * shade, c.a);
+}
+
+vec4 coilColor(vec2 uv) {
+  float a = (u_phase + u_time) * TAU;
+  float freq = 1.0 + u_scale * 0.6;
+  float amp = 0.08 + u_amount * 0.28;
+  float thick = 0.2;
+  float ph = uv.x * freq * TAU - a;
+  float dy = uv.y - 0.5 - amp * sin(ph);
+  float suY = dy / thick + 0.5;
+  vec4 c = sampleStrip(vec2(fract(ph / TAU), suY));
+  float rim = cos(clamp(suY, 0.0, 1.0) * 3.14159265);
+  float shade = 0.55 + 0.45 * rim;
+  return vec4(c.rgb * shade, c.a);
+}
+
+vec4 stripesColor(vec2 uv) {
+  float a = (u_phase + u_time) * TAU;
+  float bands = 2.0 + floor(u_scale * 1.5);
+  float bandH = 0.6;
+  vec2 su = vec2(uv.x, (uv.y - 0.5) / bandH + 0.5);
+  float band = floor(su.x * bands);
+  float bob = sin(a + band * 1.15) * u_amount * 0.45;
+  float shear = cos(a * 0.8 + band * 1.7) * u_amount * 0.2;
+  su.y += bob;
+  su.x += shear * (su.y - 0.5);
+  vec4 c = sampleStrip(su);
+  float shade = 0.78 + 0.22 * cos(a + band * 1.15);
+  return vec4(c.rgb * shade, c.a);
+}
+
 void main() {
   vec2 uv = v_uv;
   if (u_hasSource < 0.5) {
@@ -442,8 +542,16 @@ void main() {
     color = liquidColor(uv);
   } else if (u_effect == 15) {
     color = auraColor(uv);
-  } else {
+  } else if (u_effect == 16) {
     color = prismColor(uv);
+  } else if (u_effect == 17) {
+    color = cylinderColor(uv);
+  } else if (u_effect == 18) {
+    color = flagColor(uv);
+  } else if (u_effect == 19) {
+    color = coilColor(uv);
+  } else {
+    color = stripesColor(uv);
   }
   fragColor = color;
 }

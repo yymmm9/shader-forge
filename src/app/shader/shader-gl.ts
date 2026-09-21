@@ -16,6 +16,7 @@ export type ShaderSourceTransform = Readonly<{
 
 export type ShaderRenderParams = Readonly<{
   amount: number;
+  band: number;
   effect: ShaderEffectPreset;
   phase: number;
   scale: number;
@@ -47,6 +48,7 @@ const UNIFORM_NAMES = [
   "u_phase",
   "u_time",
   "u_sourceTransform",
+  "u_band",
 ] as const;
 
 function compileShader(
@@ -232,6 +234,7 @@ export function createShaderRenderer(
         params.sourceTransform.flipHorizontal ? 1 : 0,
         params.sourceTransform.flipVertical ? 1 : 0,
       );
+      gl.uniform1f(uniforms.u_band, params.band);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.disableVertexAttribArray(compiled.attributePosition);
       return !gl.isContextLost();

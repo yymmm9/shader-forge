@@ -29,7 +29,7 @@ export const shaderForgeExportRenderer: ToolcraftProductExportRenderer = {
         );
       }
       try {
-        const { source, transform } = await materializeShaderSource(
+        const { band, source, transform } = await materializeShaderSource(
           resolveShaderSource(state),
           { waitForImage: true },
         );
@@ -37,6 +37,7 @@ export const shaderForgeExportRenderer: ToolcraftProductExportRenderer = {
         if (
           !renderer.render({
             amount: params.amount,
+            band,
             effect: params.effect,
             phase: params.phase,
             scale: params.scale,

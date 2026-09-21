@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-21 — Space Type Generator 风格四效果（Cylinder/Flag/Coil/Stripes）
+
+### Added
+
+- **STG 复刻第一批**（preset 17 → 21 种），参考已下载的 spacetypegenerator.com 源码（p5.js），把其「逐字形 3D 摆放」转写为单纹理 strip-space UV 重映射：
+  - `Cylinder`：文字环绕旋转圆柱 —— `θ = asin(x/R)` 前后两面投影、多环垂直堆叠（scale 控制环数）、逐环相位偏移、角向波浪起伏、背面镜像透显变暗
+  - `Flag`：飘旗 —— 波幅向旗尾递增、水平前缩、褶皱明暗
+  - `Coil`：侧视弹簧 —— 文字条带沿正弦轨迹盘绕、圆管明暗
+  - `Stripes`：竖条百叶窗 —— 逐条 Y 向波浪 + 剪切 + 明暗交替
+- **`u_band` uniform**：文字栅格化时回传字形带实际高度占比（宽度适配后实测），strip 效果据此精确裁剪文字条带；图片源恒为 1。
+
+### Verification
+
+- `npx tsc --noEmit` 通过；聚焦测试全过。
+- Playwright 离屏 WebGL2：fragment shader 编译链接通过，effect 17–20 渲染像素量验证非空（cylinder 51332 / flag 34499 / coil 10787 / stripes 31911）。
+
 ## 2026-09-21 — Randomize / Copy params 按钮 + 3 个可读性新效果
 
 ### Added

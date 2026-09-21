@@ -6,9 +6,30 @@ Mode: product
 
 Shader Forge 是一个文字/图片驱动的 shader 编辑器：把用户输入的文字或上传的图片栅格化为源纹理，用一张 WebGL2 全屏 fragment shader 施加 17 种循环动画效果，输出可交互预览并导出 PNG/JPG 静帧。
 
-Active change: shader-forge-panel-actions
+Active change: shader-forge-stg-effects
 
 ## Decision Trail
+
+### Entry shader-forge-stg-effects
+
+- Change ID: shader-forge-stg-effects
+- Entry type: feature edit
+- Request: "你可以参考 https://spacetypegenerator.com/ 如果可以先下载下来然后慢慢复刻成react的话更好了"
+- Task type: renderer feature — port STG signature effects as strip-space UV remaps
+- User-visible result: Effect preset 扩到 21 种，新增 Cylinder（文字环绕旋转圆柱、多环堆叠、背面镜像透显）、Flag（飘旗波浪 + 褶皱明暗）、Coil（侧视弹簧螺旋条带）、Stripes（竖条百叶窗波浪）；文字与图片源均适用
+- Source/reference checked: spacetypegenerator.com 整站源码已下载到 ~/Documents/GitHub/stg-source（123 个 p5.js 文件）；sketch.js（cylinder）、sketch_flag.js、sketch_stripes.js 的核心几何（rotateY 环形摆放 + sinEngine 波形器 + per-glyph 3D transform）
+- Reference inputs: None — 参考为活站点源码，无视频素材；未注册 referenceInputs
+- Docs/contracts read: shader-text.ts/shader-source.ts/shader-gl.ts 纹理管线；STG 原作为 p5.js WEBGL 逐字形 3D 摆放，复刻路线为单纹理 UV 重映射近似（per-glyph 真 3D 需独立 instanced renderer，留作后续）
+- Contract rules applied: 新效果仅消费已声明 uniform + 新增 u_band；无新增控件/交互；pipeline/acceptance 结构不变，仅 preset 枚举扩展
+- View interaction intent: non-spatial — 仍为固定 2D 光栅输出
+- Interaction ownership: 不变 — 效果选择与参数归 Effect 面板，播放归 Timeline
+- Decision: 新增 `u_band` uniform（文字栅格的实际字形带高度占比，由 rasterizeShaderText 在宽度适配后计算 `(lines-1)*fittedLineHeight + fontSize*1.1`；图片源恒为 1）+ `sampleStrip` 采样器（strip 空间 → band 裁剪 → sourceTransform）→ 四个效果把 su.x 映射为 θ=asin(x/R)（cylinder 前后两面投影）或正弦条带（coil）或逐条位移（flag/stripes）
+- Alternatives rejected: 逐字形 instanced 渲染（真 STG 3D 复刻需新 renderer pass，体量超出本轮）；固定 0.5 band 裁剪（短文本字形会超出裁剪带 —— 改为栅格化时实测回传）
+- State/output mapping: u_band ← 文字栅格 band（descriptor → materialize → render params）；effect.preset 17–20 → 新 fragment 分支；amount/scale/phase/speed 复用既有语义
+- Verification: `npx tsc --noEmit` 通过；Playwright 离屏 WebGL2 编译链接通过，effect 17–20 渲染像素数分别 51332/34499/10787/31911（coil 为细条带属预期）；聚焦测试全过
+- Risks:
+  - Risk: band 估算基于 fontSize 近似 em 高度，极端字体/描边可能轻微超出裁剪带
+  - Risk: coil 条带较细，低分辨率/小画布上字形偏小
 
 ### Entry shader-forge-panel-actions
 

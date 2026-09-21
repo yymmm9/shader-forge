@@ -20,7 +20,7 @@ Shader Forge 是一个把文字或图片变成动态 shader 视觉效果的网�
 
 ## Effect（效果）
 
-- **Preset**：17 种 fragment shader 效果 —
+- **Preset**：21 种 fragment shader 效果 —
   - `Flow`：流体式 domain-warp 扭曲
   - `Ripple`：涟漪扩散
   - `Wave`：波浪形变
@@ -38,6 +38,10 @@ Shader Forge 是一个把文字或图片变成动态 shader 视觉效果的网�
   - `Liquid`：彩虹流体混色（保持轮廓可读）
   - `Aura`：边缘彩色辉光（保持轮廓可读）
   - `Prism`：棱镜边缘着色（保持轮廓可读）
+  - `Cylinder`：文字环绕旋转圆柱，多层堆叠（STG 风格）
+  - `Flag`：飘旗波浪 + 褶皱明暗（STG 风格）
+  - `Coil`：侧视弹簧螺旋（STG 风格）
+  - `Stripes`：竖条百叶窗波浪（STG 风格）
 - **Amount / Scale / Phase**：效果强度、空间尺度与相位偏移，拖动滑杆实时预览。
 - **Speed**：动画速率（每秒钟的循环周期数），0 为静止画面。
 

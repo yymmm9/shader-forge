@@ -116,6 +116,10 @@ export const shaderControlSections: readonly ToolcraftControlSectionSchema[] =
             { label: "Liquid", value: "liquid" },
             { label: "Aura", value: "aura" },
             { label: "Prism", value: "prism" },
+            { label: "Cylinder", value: "cylinder" },
+            { label: "Flag", value: "flag" },
+            { label: "Coil", value: "coil" },
+            { label: "Stripes", value: "stripes" },
           ],
           orderRole: "primary",
           performanceReason:

@@ -273,7 +273,7 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "select",
     evidence: "product-output",
     expectedObservable:
-      "Each of the seventeen presets (Flow, Ripple, Wave, Swirl, Kaleido, Glitch, Chromatic, Pixelate, Halftone, Dither, Posterize, Edge, Chrome, Grain, Liquid, Aura, Prism) produces a visibly different animated shader output.",
+      "Each of the twenty-one presets (Flow, Ripple, Wave, Swirl, Kaleido, Glitch, Chromatic, Pixelate, Halftone, Dither, Posterize, Edge, Chrome, Grain, Liquid, Aura, Prism, Cylinder, Flag, Coil, Stripes) produces a visibly different animated shader output.",
     fixture: "default text source",
     id: "effect.preset",
     interactionId: "interaction.effect-preset",
