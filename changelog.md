@@ -20,6 +20,7 @@
 - `npx tsc --noEmit` 通过；schema 解析确认 footer 合并为 `panelActions[shader.randomize, shader.copy-params, export.png]`。
 - Playwright 离屏 WebGL2 编译验证：含 3 个新 effect 的 fragment shader 编译链接通过。
 - app-schema / acceptance / performance-gates 聚焦测试全过；worklog 校验补齐上轮 entry 缺失字段后归零。
+- **线上验证**：部署 <https://shader-forge-liidsgh6x-yi-ming-zhangs-projects.vercel.app> 后实测 — footer 三个按钮可见；点击 Randomize 后 preset（Flow→Chromatic）与四个参数全部更新且画布像素变化；Copy params 后剪贴板读出完整配方 JSON（preset/amount/scale/phase/speed/text/typography）；随机化后动画继续逐帧播放；无 JS 错误。
 
 ## 2025-09-19 — 连续动画 + 14 种 shader 模式 + 时间轴播放
 
