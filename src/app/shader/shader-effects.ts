@@ -532,9 +532,9 @@ vec4 ascensionColor(vec2 uv) {
   float s1 = 0.5 + 0.5 * cos(sweep * TAU);
   float chrome = pow(s1, 3.5);
   float s2 = 0.5 + 0.5 * cos(sweep * TAU * 0.37 + 1.9);
-  float metal = clamp(chrome + s2 * 0.3, 0.0, 1.0);
-  metal *= mix(1.15, 0.7, su.y);
-  vec3 fill = vec3(0.28 + metal * 0.85)
+  float metal = clamp(chrome * 1.6 + s2 * 0.55, 0.0, 1.0);
+  metal *= mix(1.15, 0.75, su.y);
+  vec3 fill = vec3(0.32 + metal * 0.8)
     * mix(vec3(1.0), src.rgb * 1.6, 0.3);
   fill *= 0.4 + 0.6 * lum;
 
