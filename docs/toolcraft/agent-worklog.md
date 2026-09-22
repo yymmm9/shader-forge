@@ -10,6 +10,27 @@ Active change: shader-forge-stg-effects
 
 ## Decision Trail
 
+### Entry shader-forge-ascension-preset
+
+- Change ID: shader-forge-ascension-preset
+- Entry type: feature edit
+- Request: "https://ascension.pegassi.be/ 复刻它hero的文字效果 应该是webgl做的 'ascension'"
+- Task type: renderer feature — 复刻参考站封面 hero 字效为 strip-space fragment preset
+- User-visible result: Effect preset 扩到 22 种，新增 `Ascension` —— 文字呈拱形排布的镀铬液态金属效果（锐利明暗条纹 + 虹彩边缘 + 熔边波动 + 淡蓝白外发光），持续无缝动画；文字与图片源均适用
+- Source/reference checked: https://ascension.pegassi.be/ 线上站点 —— Playwright 截图确认整页为单一 WebGL2 canvas（自研引擎 + 字形曲线纹理 u_curves 渲染 DOM 文案）；hero 的 "ASCENSION" 实为专辑封面美术资产的一部分（封面为唱片 3D 场景纹理），其视觉语言：拱形排布、铬金属条纹填充、虹彩边缘、熔边、暗底颗粒
+- Reference inputs: None — 参考为活站点视觉检查（截图对比），无视频素材；未注册 referenceInputs
+- Docs/contracts read: 本轮为纯 fragment 分支新增，复用 shader-forge-stg-effects 已读的 strip-space/sampleStrip 契约；无新增控件与交互
+- Contract rules applied: 新效果仅消费已声明 uniforms（u_band 经 sampleStrip）；无新增控件/交互；pipeline/acceptance 结构不变，仅 preset 枚举扩展
+- View interaction intent: non-spatial — 仍为固定 2D 光栅输出
+- Interaction ownership: 不变 — 效果选择与参数归 Effect 面板，播放归 Timeline
+- Decision: `ascensionColor` —— strip 空间抛物线拱形（`su.y -= arch·(1-cx²)`）+ 多频正弦熔边扰动 + alpha 梯度（mx/my）驱动虹彩边缘色散（atan→cos 调色板）与条纹扭曲 + `pow(cos,3.5)` 锐利铬条纹 × 纵向明暗包络 + 源色 30% 染色（文字白色→纯铬，图片→按原色着铬）+ 四向 alpha 膨胀外发光；全部时间项为周期函数
+- Alternatives rejected: 逐字形 3D 摆放 + 封面纹理复刻（参考站封面字本身是美术资产非程序化字效，真 3D 需 instanced renderer 与封面贴图系统，超出单 preset 范畴）；像素级复刻封面（含楼梯/人影图片内容，非文字效果）
+- State/output mapping: effect.preset=21 → ascensionColor 分支；amount → 拱形幅度/熔边/虹彩/发光强度；scale → 铬条纹频率；phase/speed → 无缝循环相位
+- Verification: `npx tsc --noEmit` 通过；聚焦测试 25 passed；Playwright 离屏 WebGL2 编译链接通过，effect 21 渲染 "ASCENSION" 238255 lit 像素，截图确认拱形铬字 + 虹彩边缘 + 外发光
+- Risks:
+  - Risk: bandH 固定 0.55 —— 字号极大时字形可能触碰拱形边缘裁剪带；文字源随 u_band 实测可再调
+  - Risk: 参考站封面字含图片纹理细节（颗粒/划痕），本实现只取字体效果语言，颗粒感可叠加 Grain preset 思路但当前单 preset 不含
+
 ### Entry shader-forge-stg-effects
 
 - Change ID: shader-forge-stg-effects

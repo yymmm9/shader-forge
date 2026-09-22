@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-21 — Ascension 镀铬液态金属字 preset（21 → 22 种）
+
+### Added
+
+- **`Ascension` preset**：复刻 https://ascension.pegassi.be/ 专辑封面 hero 字效（Pegassi Ascension EP 封面即 WebGL 场景渲染）。单纹理 strip-space 实现：
+  - 拱形排布：`su.y -= arch * (1 - cx²)` 抛物线抬升中段
+  - 熔边波动：多频正弦扰动采样坐标，边缘呈液态熔化感
+  - 镀铬填充：`pow(cos, 3.5)` 锐利明暗条纹 + 纵向亮度包络（顶亮底暗）+ 源色 30% 染色
+  - 彩虹色散边缘：alpha 梯度方向驱动的虹彩描边
+  - 外发光：四向 alpha 膨胀采样减去本体，淡蓝白 halo
+  - 动画项全部为周期函数，时间轴循环无缝
+- 参考站为整页 WebGL2 canvas（自研引擎 + 字形曲线纹理渲染）；封面字效本身是专辑美术资产，本实现提取其视觉语言（拱形 + 铬金属 + 虹彩边缘 + 熔边）转写为通用 shader。
+
+### Verification
+
+- `npx tsc --noEmit` 通过；聚焦测试 25 passed。
+- Playwright 离屏 WebGL2：effect 21 编译链接通过，`ASCENSION` 文字渲染 238255 lit 像素，截图确认拱形铬字 + 虹彩边缘 + 外发光。
+
 ## 2026-09-21 — Space Type Generator 风格四效果（Cylinder/Flag/Coil/Stripes）
 
 ### Added

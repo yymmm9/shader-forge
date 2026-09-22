@@ -19,7 +19,8 @@ export type ShaderEffectPreset =
   | "cylinder"
   | "flag"
   | "coil"
-  | "stripes";
+  | "stripes"
+  | "ascension";
 
 export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "flow",
@@ -43,6 +44,7 @@ export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "flag",
   "coil",
   "stripes",
+  "ascension",
 ] as const;
 
 export const SHADER_EFFECT_PRESET_INDEX: Readonly<
@@ -69,6 +71,7 @@ export const SHADER_EFFECT_PRESET_INDEX: Readonly<
   flag: 18,
   coil: 19,
   stripes: 20,
+  ascension: 21,
 };
 
 export const SHADER_VERTEX_SOURCE = `#version 300 es
@@ -501,6 +504,63 @@ vec4 stripesColor(vec2 uv) {
   return vec4(c.rgb * shade, c.a);
 }
 
+vec4 ascensionColor(vec2 uv) {
+  float a = (u_phase + u_time) * TAU;
+  float bandH = 0.55;
+  vec2 su = vec2(uv.x, (uv.y - 0.5) / bandH + 0.5);
+
+  float cx = (su.x - 0.5) * 2.0;
+  float arch = 0.10 + u_amount * 0.18;
+  su.y -= arch * (1.0 - cx * cx);
+
+  float wob = 0.3 + u_amount;
+  su.y += (sin(su.x * 14.0 + a) + 0.6 * sin(su.x * 23.0 - a * 1.3))
+    * 0.012 * wob;
+  su.x += sin(su.y * 16.0 + a * 0.8) * 0.006 * wob;
+
+  vec4 src = sampleStrip(su);
+  float m = src.a;
+  float lum = dot(src.rgb, vec3(0.299, 0.587, 0.114));
+
+  float mx = sampleStrip(su + vec2(0.012, 0.0)).a
+    - sampleStrip(su - vec2(0.012, 0.0)).a;
+  float my = sampleStrip(su + vec2(0.0, 0.012)).a
+    - sampleStrip(su - vec2(0.0, 0.012)).a;
+
+  float freq = 5.0 + u_scale * 9.0;
+  float sweep = su.y * freq - a * 0.35 + mx * 2.0;
+  float s1 = 0.5 + 0.5 * cos(sweep * TAU);
+  float chrome = pow(s1, 3.5);
+  float s2 = 0.5 + 0.5 * cos(sweep * TAU * 0.37 + 1.9);
+  float metal = clamp(chrome + s2 * 0.3, 0.0, 1.0);
+  metal *= mix(1.15, 0.7, su.y);
+  vec3 fill = vec3(0.28 + metal * 0.85)
+    * mix(vec3(1.0), src.rgb * 1.6, 0.3);
+  fill *= 0.4 + 0.6 * lum;
+
+  float eg = length(vec2(mx, my));
+  vec3 hue = 0.5 + 0.5 * cos(
+    atan(my, mx) + a * 0.3 + vec3(0.0, 2.09, 4.19)
+  );
+  vec3 col = fill + hue * eg * (1.5 + u_amount * 2.0);
+
+  float halo = max(
+    max(
+      sampleStrip(su + vec2(0.0, 0.016)).a,
+      sampleStrip(su - vec2(0.0, 0.016)).a
+    ),
+    max(
+      sampleStrip(su + vec2(0.016, 0.0)).a,
+      sampleStrip(su - vec2(0.016, 0.0)).a
+    )
+  );
+  halo = max(halo - m, 0.0);
+  float haloA = halo * (0.3 + 0.35 * u_amount);
+  vec3 glowCol = vec3(0.85, 0.9, 1.0) * haloA;
+  col = col * m + glowCol;
+  return vec4(col, max(m, haloA * 0.7));
+}
+
 void main() {
   vec2 uv = v_uv;
   if (u_hasSource < 0.5) {
@@ -550,8 +610,10 @@ void main() {
     color = flagColor(uv);
   } else if (u_effect == 19) {
     color = coilColor(uv);
-  } else {
+  } else if (u_effect == 20) {
     color = stripesColor(uv);
+  } else {
+    color = ascensionColor(uv);
   }
   fragColor = color;
 }

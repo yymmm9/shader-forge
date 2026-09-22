@@ -120,6 +120,7 @@ export const shaderControlSections: readonly ToolcraftControlSectionSchema[] =
             { label: "Flag", value: "flag" },
             { label: "Coil", value: "coil" },
             { label: "Stripes", value: "stripes" },
+            { label: "Ascension", value: "ascension" },
           ],
           orderRole: "primary",
           performanceReason:
