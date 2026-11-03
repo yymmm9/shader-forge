@@ -32,6 +32,17 @@ Active change: shader-forge-video2glsl-ink
   - Risk: ink 为无纹理场景，Source/Typography 控件对其无作用 —— 属预期的 preset 语义差异，手册已注明
   - Risk: SwiftShader 渲染验证形状/颜色足够，真 GPU 上噪声导数边缘可能略锐，不影响观感
 
+### Entry shader-forge-ink-fidelity-v2
+
+- Change ID: shader-forge-ink-fidelity-v2
+- Entry type: feature edit — 同一 preset 的视觉保真迭代，无接口/控件变化
+- Request: 用户验收一轮后判「没有很像，没有 tweet 里那么还原」——对照 58–74s 参考段返工
+- Gap analysis（抽帧对比）：原 shader 各向同性大理石纹、全中灰无纯黑、无墨源/墨柱/墨头分层、无发丝须缕、无帘幕弥散
+- Decision: 按参考结构重写分层 —— 顶部墨池(ceiling)→墨柱(columns,束状+漂移断裂)→菜花墨团(plume,双瓣+须状rim+斑点fringe)→帘幕(veils)→发丝(hairs,fbm零等值线+curl域扭曲)→底部积墨(murk)；Beer 4.2 拉满墨芯对比；sepia 薄墨 + bokeh 水面
+- Iteration: 6 轮离线渲染并排调参（/tmp/video2glsl/v2/frames/sh4–sh9）；关键坑 ridgedFbm 高阈值出的是连续网状边而非孤立丝（改 fbm 等值线）、billow 细胞纹当 skirt 会糊满全帧（改轮廓环带约束）
+- Verification: tsc 0 错；app/standalone 两版 shader 均编译渲染；128 帧循环首尾连续；并排视频+网格图 /tmp/video2glsl/v2/{compare.mp4,comparison-still.png,grid.png,report.md}
+- Risks: app 版 valueNoise 系与独立版 gradientNoise 系形态近似非像素一致（同前）；plume 相位与中帧占比为主观调参
+
 ### Entry shader-forge-ascension-preset
 
 - Change ID: shader-forge-ascension-preset
