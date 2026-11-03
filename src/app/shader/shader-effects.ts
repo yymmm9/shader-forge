@@ -20,7 +20,8 @@ export type ShaderEffectPreset =
   | "flag"
   | "coil"
   | "stripes"
-  | "ascension";
+  | "ascension"
+  | "ink";
 
 export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "flow",
@@ -45,6 +46,7 @@ export const SHADER_EFFECT_PRESETS: readonly ShaderEffectPreset[] = [
   "coil",
   "stripes",
   "ascension",
+  "ink",
 ] as const;
 
 export const SHADER_EFFECT_PRESET_INDEX: Readonly<
@@ -72,6 +74,7 @@ export const SHADER_EFFECT_PRESET_INDEX: Readonly<
   coil: 19,
   stripes: 20,
   ascension: 21,
+  ink: 22,
 };
 
 export const SHADER_VERTEX_SOURCE = `#version 300 es
@@ -561,8 +564,162 @@ vec4 ascensionColor(vec2 uv) {
   return vec4(col, max(m, haloA * 0.7));
 }
 
+// --- ink: procedural ink-in-water reconstruction (video2glsl) -------------
+// Self-contained scene: no source texture required. All motion terms are
+// periodic in a = (u_phase + u_time) * TAU so the loop is seamless.
+
+float inkHash(float p) {
+  return hash21(vec2(p, p + 19.19));
+}
+
+vec2 inkOrbit(float a, float r, float ph) {
+  return r * vec2(cos(a + ph), sin(a + ph));
+}
+
+float inkFbmS(vec2 p) {
+  return fbm(p) * 2.0 - 1.0;
+}
+
+float inkRidged(vec2 p) {
+  float sum = 0.0;
+  float amp = 0.5;
+  float w = 1.0;
+  float norm = 0.0;
+  for (int i = 0; i < 5; i++) {
+    float n = 1.0 - abs(valueNoise(p) * 2.0 - 1.0);
+    n *= n;
+    sum += amp * n * w;
+    norm += amp;
+    w = clamp(n * 2.0, 0.0, 1.0);
+    amp *= 0.5;
+    p = p * 2.03 + vec2(17.3, 9.1);
+  }
+  return sum / norm;
+}
+
+float inkBillow(vec2 p) {
+  float sum = 0.0;
+  float amp = 0.5;
+  float w = 1.0;
+  float norm = 0.0;
+  for (int i = 0; i < 4; i++) {
+    float n = abs(valueNoise(p) * 2.0 - 1.0);
+    n = n * (2.0 - n);
+    sum += amp * n * w;
+    norm += amp;
+    w = clamp(n * 1.5, 0.0, 1.0);
+    amp *= 0.5;
+    p = p * 2.03 + vec2(17.3, 9.1);
+  }
+  return sum / norm;
+}
+
+vec3 inkBackground(vec2 p, vec2 uv01) {
+  float streaks = fbm(vec2(uv01.x * 14.0, uv01.y * 1.2));
+  vec3 col = vec3(0.905, 0.910, 0.925) - 0.055 * streaks;
+  float flare = smoothstep(0.55, 1.0, uv01.x)
+    * smoothstep(0.55, 1.0, uv01.y);
+  col += vec3(0.06, 0.045, 0.01) * flare;
+  float vig = smoothstep(1.65, 0.45, length(p * vec2(0.75, 1.0)));
+  return col * (0.88 + 0.12 * vig);
+}
+
+float inkDripThreads(vec2 p, float a, float sway) {
+  float acc = 0.0;
+  for (int i = 0; i < 4; i++) {
+    float fi = float(i);
+    float trunk = i == 0 ? 1.0 : 0.0;
+    float lane = mix(-0.44 + fi * 0.31, 0.06 * sin(a + 0.6), trunk)
+      + (1.0 - trunk) * 0.07 * sin(a + fi * 2.7);
+    float wander = inkFbmS(vec2(p.y * 1.4 + fi * 7.3, fi * 3.1));
+    float x = p.x - lane - 0.16 * wander
+      - sway * sin(a + p.y * 1.7 + fi * 1.3);
+    float w = mix(0.006 + 0.012 * inkHash(fi * 5.1 + 1.3), 0.030, trunk);
+    float thread = smoothstep(w, 0.0, abs(x));
+    float tex = inkRidged(
+      vec2(x * 40.0, p.y * 2.6) + inkOrbit(a, 0.22, fi * 1.7));
+    float end = 0.15 - 1.10 * inkHash(fi * 9.7 + 3.1);
+    float reach = mix(
+      smoothstep(end - 0.25, end + 0.30, p.y),
+      smoothstep(0.0, 0.55, p.y),
+      trunk);
+    float weight = mix(0.30 + 0.70 * inkHash(fi * 7.7 + 0.9), 1.3, trunk);
+    acc += thread * pow(0.10 + 0.90 * tex, 1.3) * reach * weight;
+  }
+  return acc;
+}
+
+float inkWisps(vec2 p, float a, float sway) {
+  vec2 q = p;
+  q.x += sway * 0.7 * sin(a + p.y * 1.9);
+  q *= vec2(3.4, 1.15) * max(0.4, u_scale * 0.6);
+  vec2 w = vec2(
+    inkFbmS(q * 1.2 + inkOrbit(a, 0.40, 0.0)),
+    inkFbmS(q * 1.2 + inkOrbit(a, 0.40, 2.4) + vec2(5.2, 1.3)));
+  float f = inkRidged(q * 1.6 + 1.1 * w + inkOrbit(a, 0.28, 1.1));
+  return pow(smoothstep(0.66, 0.97, f), 1.8);
+}
+
+float inkPlume(vec2 p, float a) {
+  vec2 c = vec2(0.06 * sin(a + 0.6), 0.46 - 0.08 * sin(a));
+  vec2 d = (p - c) * vec2(1.12, 0.82);
+  float grow = 0.62 + 0.38 * sin(a - 0.9);
+
+  float body = inkFbmS(d * 1.6 + inkOrbit(a, 0.55, 0.0));
+  float rim = pow(
+    inkBillow(d * 5.5 + inkOrbit(a, 0.35, 1.7)), 1.6);
+  float lace = inkFbmS(d * 4.4 + inkOrbit(a, 0.40, 3.3));
+
+  float r = length(d) - 0.28 * body;
+  float m = smoothstep(0.48, 0.02, r) * grow;
+  m *= 0.45 + 0.68 * lace;
+  m += 0.50 * rim * smoothstep(0.60, 0.05, r) * grow;
+  m += 0.75 * smoothstep(0.32, 0.0, r) * grow;
+  return clamp(m, 0.0, 1.0);
+}
+
+float inkHaze(vec2 p, float a) {
+  float band = smoothstep(-0.05, -0.45, p.y)
+    * smoothstep(-0.95, -0.55, p.y);
+  float bn = inkFbmS(p * vec2(1.2, 3.0) + inkOrbit(a, 0.35, 6.2));
+  float murk = smoothstep(-0.35, -0.98, p.y)
+    * (0.30 + 0.70 * inkBillow(
+      p * vec2(2.6, 3.4) + inkOrbit(a, 0.30, 4.1)));
+  return 0.05 * (0.5 + 0.5 * inkFbmS(p * 1.1 + inkOrbit(a, 0.5, 5.0)))
+    + 0.10 * band * (0.5 + 0.5 * bn)
+    + 0.32 * murk;
+}
+
+vec4 inkColor(vec2 uv) {
+  float aspect = u_resolution.x / max(u_resolution.y, 1.0);
+  vec2 p = (uv - 0.5) * 2.0;
+  p.x *= aspect;
+  float a = (u_phase + u_time) * TAU;
+  float sway = 0.10;
+
+  vec3 col = inkBackground(p, uv);
+  float d = inkHaze(p, a)
+    + 0.90 * inkDripThreads(p, a, sway)
+    + 0.28 * inkWisps(p, a, sway)
+    + 1.55 * inkPlume(p, a);
+  d *= 0.4 + u_amount * 1.6;
+
+  float inkA = 1.0 - exp(-3.2 * d);
+  vec3 ink = mix(
+    vec3(0.070, 0.058, 0.055) * 2.3,
+    vec3(0.070, 0.058, 0.055),
+    smoothstep(0.05, 0.55, d));
+  col = mix(col, ink, clamp(inkA, 0.0, 1.0));
+  col += (hash21(uv * u_resolution) - 0.5) * 0.012;
+  return vec4(col, 1.0);
+}
+
 void main() {
   vec2 uv = v_uv;
+  if (u_effect == 22) {
+    fragColor = inkColor(uv);
+    return;
+  }
   if (u_hasSource < 0.5) {
     fragColor = vec4(0.0);
     return;

@@ -4,11 +4,33 @@
 
 Mode: product
 
-Shader Forge 是一个文字/图片驱动的 shader 编辑器：把用户输入的文字或上传的图片栅格化为源纹理，用一张 WebGL2 全屏 fragment shader 施加 17 种循环动画效果，输出可交互预览并导出 PNG/JPG 静帧。
+Shader Forge 是一个文字/图片驱动的 shader 编辑器：把用户输入的文字或上传的图片栅格化为源纹理，用一张 WebGL2 全屏 fragment shader 施加 23 种循环动画效果（含一个无纹理程序化场景），输出可交互预览并导出 PNG/JPG 静帧。
 
-Active change: shader-forge-stg-effects
+Active change: shader-forge-video2glsl-ink
 
 ## Decision Trail
+
+### Entry shader-forge-video2glsl-ink
+
+- Change ID: shader-forge-video2glsl-ink
+- Entry type: feature edit
+- Request: "复刻 gokayfem 的 Video 2 GLSL 工作流——把短视频变成单个自包含 GLSL 片元 shader（无纹理无视频帧，纯数学无缝循环），落点 shader-forge 现有展示体系"
+- Task type: renderer feature — 首个不采样源纹理的程序化场景 preset + 交付独立 Shadertoy .frag
+- User-visible result: Effect preset 扩到 23 种，新增 `Ink` —— 程序化水墨入水场景（亮水背景 + 悬挂墨丝 + 团状扩散 + 底部沉淀），无缝循环；`public/shaders/ink-in-water.frag` 提供可直接粘贴 Shadertoy 的独立单文件
+- Source/reference checked: Wikimedia Commons `File:Ink drops in water.ogv`（CC 授权，854×480 webm 转码）截取 58–74s 扩散稳态段，cropdetect 270×434 竖幅内容区；gokayfem/shader-skills clone 至 /tmp 作原语库（fbm/ridgedFbm/billowFbm/warpedFbm/curlNoise/hash + glsl_tools.py bundle/check）
+- Reference inputs: 参考视频经 ffmpeg 抽帧网格人眼分析（未走 npm run reference:study —— 本任务目标是「同类重建」非「runtime 逐帧克隆」，产物不以视频为运行时输入）
+- Docs/contracts read: shader-effects.ts/shader-gl.ts/shader-controls.ts/shader-state.ts（u_time = timeline 循环进度 × cycles，(u_phase+u_time)*TAU 即无缝相位）；shader-skills SKILL.md 约定（mainImage、PCG hash、DEBUG_MODE、bundle 交付）
+- Contract rules applied: 新效果仅消费已声明 uniforms；首个无纹理分支在 main() 中先于 u_hasSource 短路；shader-gl.ts 允许程序化 preset 无 source 渲染；仅 preset 枚举/选项扩展，控件与 pipeline 结构不变
+- View interaction intent: non-spatial — 仍为固定 2D 光栅输出
+- Interaction ownership: 不变 — 效果选择与参数归 Effect 面板，播放归 Timeline
+- Decision: 视觉分层映射 —— 亮水底=渐变+fbm 条纹+暗角+右上暖光斑；悬挂墨丝=4 条显式轨道（x=lane+fbm(y)游走+sin(a)摆动，lane0 加粗主柱喂入墨团）；细絮丝缕=各向异性 ridged+domain warp+高阈值雕刻；团状扩散=低频形体场+billow 羽化边缘+lace 镂空+硬核心+sin(a)呼吸；底部沉淀+中层横向淡墨带；全部时间项为周期函数，噪声演化走 2D orbit 圆路径保证无缝循环
+- Alternatives rejected: 3D 噪声/raymarch 体积渲染（2D 噪声场已够同类观感，成本更低）；逐帧高保真复刻（非本技术路线目标，gokayfem 原作同为风格化重建）；把 .frag 只放 /tmp（改为 public/shaders/ 使产物随仓分发可下载）
+- State/output mapping: effect.preset=22 → inkColor 分支（main 内先于 hasSource 短路）；u_hasSource=0 时 ink 照常渲染；amount→整体墨浓度(0.4+1.6x)；scale→絮丝空间频率；phase/speed→无缝循环相位；app 版用自带 valueNoise/fbm 移植，独立 .frag 用 shader-skills 库 bundle
+- Verification: `npx tsc --noEmit` 通过；chrome-headless-shell+SwiftShader 离线 WebGL2 —— app fragment 编译链接通过、effect 22 渲 183600 lit/13898 dark 像素；独立 .frag 经 glsl_tools check lint 通过、渲 128 帧循环图集首末连续；与参考片段 16s 并排对比视频（/tmp/video2glsl/compare.mp4）；vitest src/app 683 passed/4 failed 均为基线既有失败（stash 验证一致）
+- Risks:
+  - Risk: app 版用 valueNoise 系噪声、独立 .frag 用 gradientNoise 系库函数 —— 两处形态近似但非像素一致，后续调参需双处同步
+  - Risk: ink 为无纹理场景，Source/Typography 控件对其无作用 —— 属预期的 preset 语义差异，手册已注明
+  - Risk: SwiftShader 渲染验证形状/颜色足够，真 GPU 上噪声导数边缘可能略锐，不影响观感
 
 ### Entry shader-forge-ascension-preset
 
