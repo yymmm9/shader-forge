@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-03 — Ink 程序化水墨 preset（22 → 23 种，video→GLSL 复刻）
+
+### Added
+
+- **`Ink` preset**：复刻 gokayfem「Video 2 GLSL」工作流 —— 把一段真实视频（Wikimedia Commons《Ink drops in water》，截取 58–74s 水墨扩散段）重建成单个自包含片元 shader，不采样任何纹理、纯数学、无缝循环：
+  - 悬挂墨丝：4 条显式墨丝轨道，x 位置随 y 做 fbm 游走、随时间周期摆动，lane 0 为加粗主墨柱喂入墨团
+  - 细絮丝缕：各向异性 ridged 噪声（x 向高频 → 垂直拉丝）+ domain warp + 高阈值雕刻
+  - 团状扩散：低频形体场 + billow 羽化边缘 + 内部镂空 + 硬核心达到纯黑，随 sin(a) 呼吸胀缩
+  - 底部沉淀 + 中层横向淡墨带 + 全局薄雾
+  - 所有动画项均为 `a = (u_phase + u_time) * TAU` 的周期函数；噪声演化走 2D orbit 圆路径，天然无缝
+- **自包含 shader 文件**：`public/shaders/ink-in-water.frag`（Shadertoy `mainImage` 约定，可直接粘贴运行；由 gokayfem/shader-skills 原语库 bundle 生成，16KB）
+- **渲染管线**：`shader-gl.ts` 支持程序化 preset —— `ink` 效果在无 source 纹理时也照常渲染（`u_hasSource=0`），Image 模式未上传图片时不再黑屏
+- **Amount / Scale 映射**：Amount 控制整体墨浓度，Scale 控制絮丝空间频率，Phase 偏移循环相位
+
+### Verification
+
+- `npx tsc --noEmit` 通过。
+- 离线 WebGL2（chrome-headless-shell + SwiftShader）：app fragment shader 编译链接通过，effect 22 渲染 183600 lit / 13898 dark 像素非空。
+- 独立 .frag 经 `glsl_tools.py check` lint 通过、同 harness 渲染 128 帧循环图集验证首尾无缝。
+- 与参考片段并排对比视频：左实拍右 shader，同类视觉语言（亮水背景 + 悬挂墨丝 + 团状扩散）。
+- vitest `src/app`：683 passed / 4 failed —— 失败项均为本仓既有失败（stash 基线同样 4 个），与本次改动无关。
+
 ## 2026-09-21 — Ascension 镀铬液态金属字 preset（21 → 22 种）
 
 ### Added

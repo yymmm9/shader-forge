@@ -163,12 +163,13 @@ export function createShaderRenderer(
       gl.viewport(0, 0, width, height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      if (!params.source) {
+      const procedural = params.effect === "ink";
+      if (!params.source && !procedural) {
         lastSource = null;
         return true;
       }
 
-      if (params.source !== lastSource) {
+      if (params.source && params.source !== lastSource) {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
@@ -187,18 +188,21 @@ export function createShaderRenderer(
         lastSource = params.source;
       }
 
-      const sourceWidth =
-        params.source instanceof HTMLImageElement
-          ? params.source.naturalWidth
-          : params.source instanceof VideoFrame
-            ? params.source.displayWidth
-            : params.source.width;
-      const sourceHeight =
-        params.source instanceof HTMLImageElement
-          ? params.source.naturalHeight
-          : params.source instanceof VideoFrame
-            ? params.source.displayHeight
-            : params.source.height;
+      const source = params.source;
+      const sourceWidth = !source
+        ? width
+        : source instanceof HTMLImageElement
+          ? source.naturalWidth
+          : source instanceof VideoFrame
+            ? source.displayWidth
+            : source.width;
+      const sourceHeight = !source
+        ? height
+        : source instanceof HTMLImageElement
+          ? source.naturalHeight
+          : source instanceof VideoFrame
+            ? source.displayHeight
+            : source.height;
 
       gl.useProgram(compiled.program);
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -213,7 +217,7 @@ export function createShaderRenderer(
       );
       const { uniforms } = compiled;
       gl.uniform1i(uniforms.u_source, 0);
-      gl.uniform1f(uniforms.u_hasSource, 1);
+      gl.uniform1f(uniforms.u_hasSource, params.source ? 1 : 0);
       gl.uniform1i(
         uniforms.u_effect,
         SHADER_EFFECT_PRESET_INDEX[params.effect],
