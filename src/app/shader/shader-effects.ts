@@ -567,6 +567,9 @@ vec4 ascensionColor(vec2 uv) {
 // --- ink: procedural ink-in-water reconstruction (video2glsl) -------------
 // Self-contained scene: no source texture required. All motion terms are
 // periodic in a = (u_phase + u_time) * TAU so the loop is seamless.
+// Structure mirrors public/shaders/ink-in-water.frag: a ragged ink ceiling
+// feeding bold drip columns, a cauliflower plume, translucent veils,
+// hair-thin tendrils and bottom murk.
 
 float inkHash(float p) {
   return hash21(vec2(p, p + 19.19));
@@ -614,80 +617,137 @@ float inkBillow(vec2 p) {
   return sum / norm;
 }
 
-vec3 inkBackground(vec2 p, vec2 uv01) {
-  float streaks = fbm(vec2(uv01.x * 14.0, uv01.y * 1.2));
-  vec3 col = vec3(0.905, 0.910, 0.925) - 0.055 * streaks;
-  float flare = smoothstep(0.55, 1.0, uv01.x)
-    * smoothstep(0.55, 1.0, uv01.y);
-  col += vec3(0.06, 0.045, 0.01) * flare;
-  float vig = smoothstep(1.65, 0.45, length(p * vec2(0.75, 1.0)));
-  return col * (0.88 + 0.12 * vig);
+vec3 inkBackground(vec2 p, vec2 uv01, float a) {
+  float streaks = fbm(vec2(uv01.x * 13.0, uv01.y * 1.1));
+  vec3 col = vec3(0.945, 0.945, 0.952) - 0.05 * streaks;
+  float flare = smoothstep(0.45, 1.0, uv01.x)
+    * smoothstep(0.45, 1.0, uv01.y);
+  col += vec3(0.07, 0.05, 0.01) * flare;
+  vec2 drift = 0.012 * inkOrbit(a, 1.0, 0.0);
+  float bok = exp(-80.0 * dot(
+      uv01 - vec2(0.865, 0.955) - drift, uv01 - vec2(0.865, 0.955) - drift))
+    + 0.7 * exp(-120.0 * dot(
+      uv01 - vec2(0.955, 0.900) + drift, uv01 - vec2(0.955, 0.900) + drift))
+    + 0.5 * exp(-160.0 * dot(
+      uv01 - vec2(0.760, 0.915) - drift * 0.5,
+      uv01 - vec2(0.760, 0.915) - drift * 0.5));
+  col += vec3(0.20, 0.13, 0.03) * bok;
+  float vig = smoothstep(1.70, 0.50, length(p * vec2(0.75, 1.0)));
+  return col * (0.93 + 0.07 * vig);
 }
 
-float inkDripThreads(vec2 p, float a, float sway) {
+float inkCeiling(vec2 p, float a) {
+  vec2 w = inkOrbit(a, 0.22, 1.2);
+  float edge = 0.84 + 0.10 * fbm(vec2(p.x * 1.8 + w.x, 2.7 + w.y));
+  float m = smoothstep(edge - 0.04, edge + 0.16, p.y);
+  float lace = inkRidged(vec2(p.x * 6.5, p.y * 7.5) + inkOrbit(a, 0.30, 3.0));
+  m *= 0.55 + 0.45 * smoothstep(0.10, 0.80,
+    lace + clamp((p.y - edge) * 4.0, 0.0, 1.0));
+  float teeth = inkRidged(vec2(p.x * 13.0, p.y * 4.0) + inkOrbit(a, 0.26, 5.1));
+  m += 0.5 * smoothstep(0.72, 0.95, teeth)
+    * smoothstep(edge, edge - 0.28, p.y) * smoothstep(edge - 0.55, edge, p.y);
+  m += 1.1 * smoothstep(edge + 0.02, edge + 0.28, p.y);
+  m *= 0.30 + 0.70 * smoothstep(0.75, -0.45, p.x);
+  return m;
+}
+
+float inkDripColumns(vec2 p, float a, float sway) {
   float acc = 0.0;
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 3; i++) {
     float fi = float(i);
     float trunk = i == 0 ? 1.0 : 0.0;
-    float lane = mix(-0.44 + fi * 0.31, 0.06 * sin(a + 0.6), trunk)
-      + (1.0 - trunk) * 0.07 * sin(a + fi * 2.7);
-    float wander = inkFbmS(vec2(p.y * 1.4 + fi * 7.3, fi * 3.1));
-    float x = p.x - lane - 0.16 * wander
-      - sway * sin(a + p.y * 1.7 + fi * 1.3);
-    float w = mix(0.006 + 0.012 * inkHash(fi * 5.1 + 1.3), 0.030, trunk);
-    float thread = smoothstep(w, 0.0, abs(x));
+    float baseX = -0.40 + fi * 0.36
+      + 0.12 * (inkHash(fi * 3.7 + 0.4) - 0.5);
+    float wander = inkFbmS(vec2(p.y * 1.1 + fi * 5.0, fi * 2.3));
+    float lane = baseX + 0.14 * wander
+      + sway * sin(a + p.y * 1.3 + fi * 1.9);
+    float x = p.x - lane;
+    float depth = (1.0 - p.y) * 0.5;
+    float w = mix(0.010 + 0.006 * inkHash(fi * 5.1 + 1.3),
+      0.022 + 0.020 * inkHash(fi * 8.3 + 2.9), depth)
+      + (0.020 + 0.016 * depth) * trunk;
     float tex = inkRidged(
-      vec2(x * 40.0, p.y * 2.6) + inkOrbit(a, 0.22, fi * 1.7));
-    float end = 0.15 - 1.10 * inkHash(fi * 9.7 + 3.1);
+      vec2(x * 24.0, p.y * 2.8) + inkOrbit(a, 0.32, fi * 1.7));
+    float tube = smoothstep(w, 0.0, abs(x));
+    float strand = 0.40 + 0.60 * inkRidged(
+      vec2(x * 55.0, p.y * 3.2) + inkOrbit(a, 0.30, fi * 2.9));
+    float core = smoothstep(w * 0.5, 0.0, abs(x)) * strand;
+    float margin = smoothstep(w * 2.4, w * 0.6, abs(x))
+      * smoothstep(0.45, 0.85, tex);
+    float end = -0.05 - 0.45 * inkHash(fi * 9.7 + 3.1);
     float reach = mix(
-      smoothstep(end - 0.25, end + 0.30, p.y),
-      smoothstep(0.0, 0.55, p.y),
+      smoothstep(end - 0.15, end + 0.35, p.y),
+      smoothstep(-0.30, 0.35, p.y),
       trunk);
-    float weight = mix(0.30 + 0.70 * inkHash(fi * 7.7 + 0.9), 1.3, trunk);
-    acc += thread * pow(0.10 + 0.90 * tex, 1.3) * reach * weight;
+    float gap = mix(smoothstep(0.15, 0.75,
+        fbm(vec2(p.y * 2.2, fi * 4.4) + inkOrbit(a, 0.30, fi))),
+      1.0, trunk);
+    float weight = mix(0.40 + 0.40 * inkHash(fi * 7.7 + 0.9), 1.35, trunk);
+    acc += (tube * (0.25 + 0.75 * tex) + core * 1.2 + margin * 0.6)
+      * reach * gap * weight;
   }
   return acc;
 }
 
-float inkWisps(vec2 p, float a, float sway) {
-  vec2 q = p;
-  q.x += sway * 0.7 * sin(a + p.y * 1.9);
-  q *= vec2(3.4, 1.15) * max(0.4, u_scale * 0.6);
+float inkVeils(vec2 p, float a) {
+  vec2 q = vec2(p.x * 0.55, p.y * 0.30);
   vec2 w = vec2(
+    fbm(q * 1.4 + inkOrbit(a, 0.30, 0.2)),
+    fbm(q * 1.4 + inkOrbit(a, 0.30, 2.9) + vec2(5.2, 1.3)));
+  float v = 0.5 + 0.5 * inkFbmS(q * 1.7 + 1.6 * w + inkOrbit(a, 0.35, 4.4));
+  float streak = 0.75 + 0.25 * fbm(
+    vec2(p.x * 7.0, p.y * 0.5) + inkOrbit(a, 0.30, 3.7));
+  float band = smoothstep(0.95, 0.45, p.y)
+    * smoothstep(-1.05, -0.45, p.y);
+  return v * v * streak * (0.35 + 0.65 * band);
+}
+
+float inkHairs(vec2 p, float a) {
+  vec2 q = p * vec2(4.6, 1.5) * max(0.4, u_scale * 0.6);
+  q += 1.7 * vec2(
     inkFbmS(q * 1.2 + inkOrbit(a, 0.40, 0.0)),
     inkFbmS(q * 1.2 + inkOrbit(a, 0.40, 2.4) + vec2(5.2, 1.3)));
-  float f = inkRidged(q * 1.6 + 1.1 * w + inkOrbit(a, 0.28, 1.1));
-  return pow(smoothstep(0.66, 0.97, f), 1.8);
+  float f = inkFbmS(q + inkOrbit(a, 0.55, 2.0));
+  float line = smoothstep(0.045, 0.005, abs(f));
+  float gate = smoothstep(0.35, 0.75,
+    fbm(p * vec2(1.6, 1.1) + inkOrbit(a, 0.40, 5.9)));
+  float depthW = 0.35 + 0.65 * smoothstep(0.55, -0.55, p.y);
+  return line * gate * depthW;
 }
 
 float inkPlume(vec2 p, float a) {
-  vec2 c = vec2(0.06 * sin(a + 0.6), 0.46 - 0.08 * sin(a));
-  vec2 d = (p - c) * vec2(1.12, 0.82);
-  float grow = 0.62 + 0.38 * sin(a - 0.9);
+  float grow = 0.5 + 0.5 * sin(a - 1.1);
+  vec2 c = vec2(0.07 * sin(a + 0.6),
+    mix(0.32, -0.18, grow) + 0.05 * cos(2.0 * a));
+  vec2 d = (p - c) * vec2(0.90, 0.97);
 
-  float body = inkFbmS(d * 1.6 + inkOrbit(a, 0.55, 0.0));
-  float rim = pow(
-    inkBillow(d * 5.5 + inkOrbit(a, 0.35, 1.7)), 1.6);
-  float lace = inkFbmS(d * 4.4 + inkOrbit(a, 0.40, 3.3));
-
-  float r = length(d) - 0.28 * body;
-  float m = smoothstep(0.48, 0.02, r) * grow;
-  m *= 0.45 + 0.68 * lace;
-  m += 0.50 * rim * smoothstep(0.60, 0.05, r) * grow;
-  m += 0.75 * smoothstep(0.32, 0.0, r) * grow;
-  return clamp(m, 0.0, 1.0);
+  float body = inkFbmS(d * 1.5 + inkOrbit(a, 0.50, 0.4));
+  float rag = inkRidged(d * 7.5 + inkOrbit(a, 0.30, 2.6));
+  float r1 = length(d) - 0.36 * body - 0.04 + 0.15 * (rag - 0.5);
+  float r2 = length(d - vec2(0.28, 0.07))
+    - 0.22 * inkFbmS(d * 1.9 + inkOrbit(a, 0.45, 1.9))
+    - 0.02 + 0.12 * (rag - 0.5);
+  float r = min(r1, r2 * 1.45);
+  float core = smoothstep(0.26, 0.02, r);
+  float rimN = inkRidged(d * 9.0 + inkOrbit(a, 0.35, 1.7));
+  float ring = smoothstep(0.60, 0.20, r) * smoothstep(-0.05, 0.25, r);
+  float rim = pow(rimN, 1.5) * ring;
+  float fringe = pow(inkRidged(d * 15.0 + inkOrbit(a, 0.28, 4.4)), 2.5)
+    * smoothstep(0.55, 0.10, r);
+  float lace = inkFbmS(d * 4.6 + inkOrbit(a, 0.40, 3.3));
+  float m = core * (0.55 + 0.80 * lace) + 1.15 * rim + 0.55 * fringe;
+  float below = smoothstep(0.0, -0.55, p.y - c.y);
+  vec2 ds = d - vec2(0.0, -0.30);
+  m += 0.22 * below * smoothstep(0.75, 0.15, length(ds));
+  m += 0.45 * rimN * below * smoothstep(0.45, 0.10, abs(r - 0.30));
+  return clamp(m * (0.70 + 0.60 * grow), 0.0, 1.0);
 }
 
-float inkHaze(vec2 p, float a) {
-  float band = smoothstep(-0.05, -0.45, p.y)
-    * smoothstep(-0.95, -0.55, p.y);
-  float bn = inkFbmS(p * vec2(1.2, 3.0) + inkOrbit(a, 0.35, 6.2));
-  float murk = smoothstep(-0.35, -0.98, p.y)
-    * (0.30 + 0.70 * inkBillow(
-      p * vec2(2.6, 3.4) + inkOrbit(a, 0.30, 4.1)));
-  return 0.05 * (0.5 + 0.5 * inkFbmS(p * 1.1 + inkOrbit(a, 0.5, 5.0)))
-    + 0.10 * band * (0.5 + 0.5 * bn)
-    + 0.32 * murk;
+float inkMurk(vec2 p, float a) {
+  float rise = 0.5 + 0.5 * sin(a - 0.4);
+  float g = smoothstep(-0.38 - 0.22 * rise, -1.0, p.y);
+  float n = inkBillow(p * vec2(2.6, 3.6) + inkOrbit(a, 0.30, 4.1));
+  return g * (0.15 + 0.85 * n) * 0.8;
 }
 
 vec4 inkColor(vec2 uv) {
@@ -695,20 +755,23 @@ vec4 inkColor(vec2 uv) {
   vec2 p = (uv - 0.5) * 2.0;
   p.x *= aspect;
   float a = (u_phase + u_time) * TAU;
-  float sway = 0.10;
+  float sway = 0.09;
 
-  vec3 col = inkBackground(p, uv);
-  float d = inkHaze(p, a)
-    + 0.90 * inkDripThreads(p, a, sway)
-    + 0.28 * inkWisps(p, a, sway)
-    + 1.55 * inkPlume(p, a);
+  vec3 col = inkBackground(p, uv, a);
+  float d = 0.04 * (0.5 + 0.5 * inkFbmS(p * 1.1 + inkOrbit(a, 0.5, 5.0)))
+    + 0.22 * inkVeils(p, a)
+    + 0.50 * inkHairs(p, a)
+    + 1.90 * inkCeiling(p, a)
+    + 1.45 * inkDripColumns(p, a, sway)
+    + 1.65 * inkPlume(p, a)
+    + 0.62 * inkMurk(p, a);
   d *= 0.4 + u_amount * 1.6;
 
-  float inkA = 1.0 - exp(-3.2 * d);
+  float inkA = 1.0 - exp(-4.2 * d);
   vec3 ink = mix(
-    vec3(0.070, 0.058, 0.055) * 2.3,
-    vec3(0.070, 0.058, 0.055),
-    smoothstep(0.05, 0.55, d));
+    vec3(0.30, 0.245, 0.215),
+    vec3(0.042, 0.034, 0.032),
+    smoothstep(0.04, 0.60, d));
   col = mix(col, ink, clamp(inkA, 0.0, 1.0));
   col += (hash21(uv * u_resolution) - 0.5) * 0.012;
   return vec4(col, 1.0);

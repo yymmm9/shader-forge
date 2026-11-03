@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-03 — Ink preset 还原度二轮返工
+
+### Changed
+
+- **`Ink` 场景结构整体重写**：对照参考段（58–74s 水墨扩散）逐帧并排迭代 6 轮，从「各向同性大理石纹」改为符合重力驱动的分层结构：
+  - 新增**顶部墨池**：挂边墨带（左重右轻）+ 蕾丝溶解下缘 + 悬挂细齿，作为墨柱的供给源
+  - **墨柱**改为束状结构：显式轨道下坠加宽 + 内部平行丝束纹理 + 蕾丝边缘 + 沿柱漂移的断裂缺口
+  - **墨团**改为双瓣菜花轮廓（min 合并两个形体场）+ 轮廓环带内的须状 rim + 高频斑点 fringe + 内部 lace 镂空透光
+  - **发丝须缕**改为各向异性 fbm 零等值线 + curlNoise 域扭曲 + 稀疏门控（替代原 ridged 全网状纹理）
+  - 新增**帘幕弥散**：低频线性响应灰洗 + 垂直沉降条纹，不产生细胞边界
+  - **水面**提亮 + 右上暖色 bokeh 高光点漂移；薄墨区域呈暖褐 sepia 调
+  - Beer 吸收指数 3.2 → 4.2，墨芯达到参考的纯黑密度
+- **同步更新** `public/shaders/ink-in-water.frag`（新增 curlNoise 原语）与 `shader-effects.ts` 内嵌 ink 效果，两侧结构保持一致
+
+### Verification
+
+- `npx tsc --noEmit` 0 错误。
+- 离线 WebGL2 渲染：独立 .frag 与 app 内嵌版均编译通过、按相同分层渲染；128 帧循环图集首尾连续无跳变。
+- 并排对比产出在 `/tmp/video2glsl/v2/`（compare.mp4 16s、comparison-still.png、grid.png、报告 report.md），结构/运动/色彩三维度对齐参考段。
+
 ## 2026-11-03 — Ink 程序化水墨 preset（22 → 23 种，video→GLSL 复刻）
 
 ### Added
