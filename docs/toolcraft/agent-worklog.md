@@ -32,16 +32,45 @@ Active change: shader-forge-video2glsl-ink
   - Risk: ink 为无纹理场景，Source/Typography 控件对其无作用 —— 属预期的 preset 语义差异，手册已注明
   - Risk: SwiftShader 渲染验证形状/颜色足够，真 GPU 上噪声导数边缘可能略锐，不影响观感
 
+### Entry shader-forge-ink-fidelity-v3
+
+- Change ID: shader-forge-ink-fidelity-v3
+- Entry type: feature edit — 同一 preset 的视觉保真迭代，无接口/控件变化
+- Request: 用户验收后仍判「没有很像，没有 tweet 里那么还原」——第三轮对照 58–74s 参考段返工
+- Task type: renderer feature — ink preset 分层结构再重写（密度层重组 + 双墨色通道）
+- User-visible result: `Ink` preset 观感大幅贴近参考段——左侧粗墨轨 + 右侧 sepia 分枝墨柱、随循环生长沉降的纤维质墨团、区域性缠丝残留、稀疏挂丝与底部积墨；独立 .frag 同步
+- Source/reference checked: 重新下载 Wikimedia `Ink drops in water.ogv` 1920×1080 源片，crop 608×1024 抽帧对比（v2 的 /tmp 产物已被系统清理，对比物料随仓落在 `docs/video2glsl/`）
+- Reference inputs: 同前两次 —— 抽帧人眼分析 + 并排渲染对比，未走 reference:study（同类重建非逐帧克隆）
+- Docs/contracts read: docs/video2glsl/ink-fidelity.md（本轮沉淀的还原度手册）；shader-effects.ts 无新 uniform，结构契约不变
+- Contract rules applied: 纯 fragment 分支内部重写；控件/pipeline/acceptance 无变化
+- View interaction intent: non-spatial — 不变
+- Interaction ownership: 不变
+- Decision: 差距逐项 —— v2 的墨团实心过黑、墨柱弱不可见、顶池成黑幕、发丝成碎点、单一墨色；改为 trailLane 显式轨道（左侧粗黑轨 + 墨团柱 + sepia 分枝柱）、grow 门控的双瓣纤维墨团、mask 约束的 cloudWeb 缠丝残留、限定 y-range 的 threads 挂丝、sepia 独立密度通道
+- Alternatives rejected: 全局 fbm 等值线丝缕（无 mask 会糊成均匀毛线球）；9 根全长挂丝（平行竖条窗帘感，参考丝缕稀疏分区）；billow 细胞纹做残留纹理（细胞感不对）
+- Iteration: 7 版离线渲染并排调参（v3a–v3g）；关键转折——墨团 solo 渲染确认剪影成立后回合成层，问题定位在 webs 密度与墨团同级互相淹没
+- State/output mapping: effect.preset=ink → inkColor 分支不变；amount→dB/dS 密度缩放；scale→threads/cloudWeb 空间频率；phase/speed→循环相位
+- Verification: `npx tsc --noEmit` 0 错；独立 .frag 与 app 内嵌版均在 headless Chrome+SwiftShader 下编译渲染；loop 首尾 mean diff 0.41/255 无缝；并排产物 `docs/video2glsl/{compare-v3.mp4,comparison-grid-v3.png,comparison-still-v3.png}`；vitest src/app 682 passed/5 failed——4 项基线既有失败 + 1 项 v2 worklog 条目缺字段（本轮已补全字段）
+- Risks: app 版 valueNoise 系与独立版 gradientNoise 系形态近似非像素一致（同前）；参考墨柱表面更糙、墨团更实，程序化噪声固有风格差
+
 ### Entry shader-forge-ink-fidelity-v2
 
 - Change ID: shader-forge-ink-fidelity-v2
 - Entry type: feature edit — 同一 preset 的视觉保真迭代，无接口/控件变化
 - Request: 用户验收一轮后判「没有很像，没有 tweet 里那么还原」——对照 58–74s 参考段返工
-- Gap analysis（抽帧对比）：原 shader 各向同性大理石纹、全中灰无纯黑、无墨源/墨柱/墨头分层、无发丝须缕、无帘幕弥散
+- Task type: renderer feature — ink preset 分层结构重写
+- User-visible result: `Ink` preset 从各向同性大理石纹改为重力驱动分层结构：顶部墨池→束状墨柱→菜花墨团→发丝须缕→帘幕弥散→底部积墨
+- Source/reference checked: Wikimedia `Ink drops in water.ogv` 58–74s 段抽帧
+- Reference inputs: 抽帧人眼分析 + 并排渲染对比，未走 reference:study（同类重建非逐帧克隆）
+- Docs/contracts read: shader-effects.ts/shader-gl.ts 无新 uniform，结构契约不变
+- Contract rules applied: 纯 fragment 分支内部重写；控件/pipeline/acceptance 无变化
+- View interaction intent: non-spatial — 不变
+- Interaction ownership: 不变
 - Decision: 按参考结构重写分层 —— 顶部墨池(ceiling)→墨柱(columns,束状+漂移断裂)→菜花墨团(plume,双瓣+须状rim+斑点fringe)→帘幕(veils)→发丝(hairs,fbm零等值线+curl域扭曲)→底部积墨(murk)；Beer 4.2 拉满墨芯对比；sepia 薄墨 + bokeh 水面
+- Alternatives rejected: 3D 噪声体积渲染（成本不值）；逐帧高保真（非本路线目标）
 - Iteration: 6 轮离线渲染并排调参（/tmp/video2glsl/v2/frames/sh4–sh9）；关键坑 ridgedFbm 高阈值出的是连续网状边而非孤立丝（改 fbm 等值线）、billow 细胞纹当 skirt 会糊满全帧（改轮廓环带约束）
-- Verification: tsc 0 错；app/standalone 两版 shader 均编译渲染；128 帧循环首尾连续；并排视频+网格图 /tmp/video2glsl/v2/{compare.mp4,comparison-still.png,grid.png,report.md}
-- Risks: app 版 valueNoise 系与独立版 gradientNoise 系形态近似非像素一致（同前）；plume 相位与中帧占比为主观调参
+- State/output mapping: effect.preset=ink → inkColor 分支；amount→墨浓度；scale→絮丝频率；phase/speed→循环相位
+- Verification: tsc 0 错；app/standalone 两版 shader 均编译渲染；128 帧循环首尾连续；并排视频+网格图 /tmp/video2glsl/v2/{compare.mp4,comparison-still.png,grid.png,report.md}（/tmp 产物已被系统清理，v3 轮改落 `docs/video2glsl/`）
+- Risks: app 版 valueNoise 系与独立版 gradientNoise 系形态近似非像素一致（同前）；plume 相位与中帧占比为主观调参；验收后仍判不够还原，v3 轮继续重写
 
 ### Entry shader-forge-ascension-preset
 

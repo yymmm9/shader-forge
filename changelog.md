@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-13 — Ink preset 还原度三轮：密度层重组 + 双墨色
+
+### Changed
+
+- **`Ink` 场景分层再重组**：对照参考段（58–74s）并排迭代 7 版，修正二轮遗留的形态差距：
+  - **墨柱改显式轨道法**：左侧粗黑主墨轨 + 墨团喂入柱 + sepia 细柱共用 `trailLane`（低频 fbm 游走 + 下沉加宽 + 束状内纹 + 宽蕾丝 margin），替代此前弱不可见的 dripColumns
+  - **墨团改纤维质**：内部换高对比 ridged 丝缕（透光不再实心黑），黑芯只留墨柱喂入的顶部，低频 fbm+ridged 扰动双瓣剪影出菜花底缘；**新增 grow 生命周期门控**——循环开头几乎无墨团、中段盛放、尾段沉降
+  - **发丝改稀疏挂丝**：6 根限定 y-range 的显式细轨道（替代碎点状 hairs）
+  - **新增缠丝残留 cloudWeb**：fbm 零等值线缠丝网套软边界 mask，只长在墨团周围/左下残留区/上缘（全局等值线会糊成毛线球）
+  - **新增 sepia 第二墨色**：右侧分枝墨柱独立密度通道与褐色 Beer 上色，还原参考片右侧明显的褐墨柱
+  - 顶部墨池收窄为按泳道加权的挂边墨带（不再全宽黑幕）；帘幕/底积墨加左侧偏置
+- **同步** `public/shaders/ink-in-water.frag` 与 app 内嵌版，结构一一对应
+- **对比物料随仓落地**：`docs/video2glsl/`（compare-v3.mp4 16s 并排、comparison-grid-v3.png 三时点、comparison-still-v3.png）——此前 /tmp 产物会被系统清理
+- **新增复刻手册** `docs/video2glsl/ink-fidelity.md`：管线步骤 + 「怎么提高还原度」对照清单 + 排过的坑
+
+### Fixed
+
+- 补齐 v2 worklog 条目缺失的必填字段（product-worklog 契约测试 5th failure → 回到 4 项基线既有失败）
+
+### Verification
+
+- `npx tsc --noEmit` 0 错误
+- 独立 .frag 与 app 内嵌版均在 headless Chrome + SwiftShader 下编译渲染通过
+- 循环首尾 mean diff 0.41/255 无缝
+- vitest `src/app`：682 passed / 4 failed（均为基线既有失败）
+
 ## 2026-11-03 — Ink preset 还原度二轮返工
 
 ### Changed
